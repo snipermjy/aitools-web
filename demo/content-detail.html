@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用AI的4个高效工作技巧 - AI快讯</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            background-color: #F9FAFB;
+            color: #111827;
+        }
+
+        /* 顶部导航栏 */
+        .navbar {
+            height: 64px;
+            background: #FFFFFF;
+            border-bottom: 1px solid #E5E7EB;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            padding: 0 32px;
+        }
+
+        .navbar-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 20px;
+            font-weight: 700;
+            color: #4F46E5;
+        }
+
+        .navbar-logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+            border-radius: 8px;
+        }
+
+        /* 面包屑导航 */
+        .breadcrumb {
+            margin-top: 80px;
+            padding: 0 32px;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .breadcrumb-list {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            font-size: 14px;
+            color: #6B7280;
+            padding: 16px 0;
+        }
+
+        .breadcrumb-link {
+            color: #6B7280;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .breadcrumb-link:hover {
+            color: #4F46E5;
+        }
+
+        .breadcrumb-separator {
+            color: #D1D5DB;
+        }
+
+        .breadcrumb-current {
+            color: #111827;
+            font-weight: 500;
+        }
+
+        /* 主容器 */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 32px 64px;
+        }
+
+        /* 文章容器 */
+        .article-container {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 32px;
+        }
+
+        /* 文章主体 */
+        .article-main {
+            background: #FFFFFF;
+            border-radius: 12px;
+            padding: 48px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .article-header {
+            margin-bottom: 32px;
+            padding-bottom: 24px;
+            border-bottom: 2px solid #F3F4F6;
+        }
+
+        .article-category {
+            display: inline-block;
+            padding: 6px 16px;
+            background: #EEF2FF;
+            color: #4F46E5;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .article-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: #111827;
+            line-height: 1.3;
+            margin-bottom: 16px;
+        }
+
+        .article-meta {
+            display: flex;
+            gap: 24px;
+            font-size: 14px;
+            color: #6B7280;
+        }
+
+        .article-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .article-cover {
+            width: 100%;
+            height: 400px;
+            background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+            border-radius: 12px;
+            margin-bottom: 32px;
+        }
+
+        .article-content {
+            font-size: 16px;
+            line-height: 1.8;
+            color: #374151;
+        }
+
+        .article-content h2 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #111827;
+            margin-top: 32px;
+            margin-bottom: 16px;
+        }
+
+        .article-content h3 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #111827;
+            margin-top: 24px;
+            margin-bottom: 12px;
+        }
+
+        .article-content p {
+            margin-bottom: 16px;
+        }
+
+        .article-content ul, .article-content ol {
+            margin-left: 24px;
+            margin-bottom: 16px;
+        }
+
+        .article-content li {
+            margin-bottom: 8px;
+        }
+
+        .article-content blockquote {
+            padding: 16px 20px;
+            margin: 24px 0;
+            background: #F9FAFB;
+            border-left: 4px solid #4F46E5;
+            border-radius: 4px;
+            color: #6B7280;
+            font-style: italic;
+        }
+
+        .article-content code {
+            padding: 2px 6px;
+            background: #F3F4F6;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #EF4444;
+        }
+
+        .article-content pre {
+            padding: 16px;
+            background: #1F2937;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 24px 0;
+        }
+
+        .article-content pre code {
+            background: transparent;
+            color: #10B981;
+            padding: 0;
+        }
+
+        /* 文章底部 */
+        .article-footer {
+            margin-top: 48px;
+            padding-top: 24px;
+            border-top: 2px solid #F3F4F6;
+        }
+
+        .article-tags {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+        }
+
+        .article-tag {
+            padding: 6px 16px;
+            background: #F3F4F6;
+            color: #6B7280;
+            border-radius: 16px;
+            font-size: 14px;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .article-tag:hover {
+            background: #EEF2FF;
+            color: #4F46E5;
+        }
+
+        .article-share {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .share-label {
+            font-size: 14px;
+            color: #6B7280;
+            font-weight: 500;
+        }
+
+        .share-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #F3F4F6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 18px;
+        }
+
+        .share-btn:hover {
+            background: #4F46E5;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        /* 侧边栏 */
+        .article-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .sidebar-card {
+            background: #FFFFFF;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            position: sticky;
+            top: 80px;
+        }
+
+        .sidebar-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #F3F4F6;
+        }
+
+        .toc-list {
+            list-style: none;
+        }
+
+        .toc-item {
+            margin-bottom: 8px;
+        }
+
+        .toc-link {
+            display: block;
+            padding: 8px 12px;
+            color: #6B7280;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .toc-link:hover {
+            background: #F9FAFB;
+            color: #4F46E5;
+        }
+
+        .toc-link.active {
+            background: #EEF2FF;
+            color: #4F46E5;
+            font-weight: 600;
+        }
+
+        /* 相关内容 */
+        .related-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .related-item {
+            display: flex;
+            gap: 12px;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.2s;
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .related-item:hover {
+            background: #F9FAFB;
+        }
+
+        .related-cover {
+            width: 80px;
+            height: 60px;
+            border-radius: 6px;
+            background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+            flex-shrink: 0;
+        }
+
+        .related-info {
+            flex: 1;
+        }
+
+        .related-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 4px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .related-date {
+            font-size: 12px;
+            color: #9CA3AF;
+        }
+
+        /* 动画 */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.4s ease-in-out;
+        }
+
+        /* 响应式 */
+        @media (max-width: 1023px) {
+            .article-container {
+                grid-template-columns: 1fr;
+            }
+            .sidebar-card {
+                position: static;
+            }
+        }
+
+        @media (max-width: 767px) {
+            .container {
+                padding: 0 16px 32px;
+            }
+            .article-main {
+                padding: 24px;
+            }
+            .article-title {
+                font-size: 24px;
+            }
+            .article-cover {
+                height: 240px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar">
+        <div class="navbar-logo">
+            <div class="navbar-logo-icon"></div>
+            <span>AI工具导航</span>
+        </div>
+    </nav>
+
+    <!-- 面包屑导航 -->
+    <div class="breadcrumb">
+        <div class="breadcrumb-list">
+            <a href="#" class="breadcrumb-link">首页</a>
+            <span class="breadcrumb-separator">/</span>
+            <a href="#" class="breadcrumb-link">AI快讯</a>
+            <span class="breadcrumb-separator">/</span>
+            <span class="breadcrumb-current">用AI的4个高效工作技巧</span>
+        </div>
+    </div>
+
+    <!-- 主容器 -->
+    <div class="container fade-in">
+        <div class="article-container">
+            <!-- 文章主体 -->
+            <article class="article-main">
+                <header class="article-header">
+                    <div class="article-category">AI快讯</div>
+                    <h1 class="article-title">用AI的4个高效工作技巧</h1>
+                    <div class="article-meta">
+                        <div class="article-meta-item">
+                            <span>👤</span>
+                            <span>AI研究室</span>
+                        </div>
+                        <div class="article-meta-item">
+                            <span>📅</span>
+                            <span>2025年10月26日</span>
+                        </div>
+                        <div class="article-meta-item">
+                            <span>👁️</span>
+                            <span>1,234 阅读</span>
+                        </div>
+                    </div>
+                </header>
+
+                <div class="article-cover"></div>
+
+                <div class="article-content">
+                    <p>在当今快节奏的工作环境中，如何有效利用AI工具提高工作效率已成为每个职场人必备的技能。本文将分享4个实用的AI工作技巧，帮助你告别无效对话，让工作效率翻倍。</p>
+
+                    <h2>1. 精准描述你的需求</h2>
+                    <p>与AI对话时，精准的问题描述是获得高质量回答的关键。避免模糊的提问，而是提供具体的上下文和期望的结果。</p>
+                    
+                    <blockquote>
+                        "不要问'怎么写好文章'，而是问'如何为科技产品写一篇800字的营销软文，重点突出创新性和用户体验'。"
+                    </blockquote>
+
+                    <p>具体来说，一个好的提问应该包含：</p>
+                    <ul>
+                        <li>明确的任务目标</li>
+                        <li>必要的背景信息</li>
+                        <li>期望的输出格式</li>
+                        <li>特定的约束条件</li>
+                    </ul>
+
+                    <h2>2. 使用分步骤提示</h2>
+                    <p>对于复杂任务，不要试图一次性得到完整答案。将大任务拆解成小步骤，逐步引导AI完成工作。</p>
+
+                    <p>举个例子，如果你要创建一个营销方案：</p>
+                    <ol>
+                        <li>第一步：让AI分析目标用户画像</li>
+                        <li>第二步：基于用户画像生成营销策略</li>
+                        <li>第三步：针对每个策略制定具体执行计划</li>
+                        <li>第四步：生成可衡量的KPI指标</li>
+                    </ol>
+
+                    <h2>3. 提供示例和模板</h2>
+                    <p>当你需要AI按照特定格式或风格输出内容时，提供示例是最有效的方法。这被称为"少样本学习"（Few-shot Learning）。</p>
+
+                    <p>例如，你可以这样提问：</p>
+                    <pre><code>我需要写产品描述，请参考以下格式：
+
+[产品名称]
+核心功能：xxx
+适用场景：xxx
+主要优势：xxx
+
+现在请为[新产品]生成类似的描述。</code></pre>
+
+                    <h3>为什么示例如此重要？</h3>
+                    <p>AI模型擅长模式识别。通过提供示例，你实际上是在教AI理解你期望的输出模式，这比用语言描述要精准得多。</p>
+
+                    <h2>4. 迭代优化你的提示词</h2>
+                    <p>第一次得到的答案可能不完美，这很正常。关键是学会基于AI的回答进行迭代优化。</p>
+
+                    <p>迭代优化的常用技巧：</p>
+                    <ul>
+                        <li><strong>追加细节：</strong>"请在原来的基础上，增加更多技术细节"</li>
+                        <li><strong>调整风格：</strong>"请用更口语化/专业的语气重写"</li>
+                        <li><strong>聚焦重点：</strong>"请重点展开第3点，其他点简略说明"</li>
+                        <li><strong>变换角度：</strong>"请从用户的角度重新阐述"</li>
+                    </ul>
+
+                    <blockquote>
+                        "记住，与AI对话是一个协作过程，而不是一次性的命令执行。通过多轮对话，你可以逐步引导AI生成最符合你需求的内容。"
+                    </blockquote>
+
+                    <h2>总结</h2>
+                    <p>掌握这4个技巧，你就能显著提升使用AI工具的效率：</p>
+                    <ol>
+                        <li>精准描述需求，提供充分的上下文</li>
+                        <li>将复杂任务拆解成多个简单步骤</li>
+                        <li>通过示例和模板明确期望的输出格式</li>
+                        <li>不断迭代优化，直到获得满意的结果</li>
+                    </ol>
+
+                    <p>这些技巧不仅适用于ChatGPT，也同样适用于Claude、文心一言、通义千问等其他AI助手。开始实践吧，你会发现AI能成为你工作中最得力的助手！</p>
+                </div>
+
+                <footer class="article-footer">
+                    <div class="article-tags">
+                        <a href="#" class="article-tag">#AI工作技巧</a>
+                        <a href="#" class="article-tag">#提示词</a>
+                        <a href="#" class="article-tag">#效率提升</a>
+                        <a href="#" class="article-tag">#ChatGPT</a>
+                    </div>
+
+                    <div class="article-share">
+                        <span class="share-label">分享到：</span>
+                        <div class="share-btn" title="微信">💬</div>
+                        <div class="share-btn" title="微博">📱</div>
+                        <div class="share-btn" title="复制链接">🔗</div>
+                    </div>
+                </footer>
+            </article>
+
+            <!-- 侧边栏 -->
+            <aside class="article-sidebar">
+                <!-- 目录 -->
+                <div class="sidebar-card">
+                    <h3 class="sidebar-title">文章目录</h3>
+                    <ul class="toc-list">
+                        <li class="toc-item">
+                            <a href="#section1" class="toc-link active">1. 精准描述你的需求</a>
+                        </li>
+                        <li class="toc-item">
+                            <a href="#section2" class="toc-link">2. 使用分步骤提示</a>
+                        </li>
+                        <li class="toc-item">
+                            <a href="#section3" class="toc-link">3. 提供示例和模板</a>
+                        </li>
+                        <li class="toc-item">
+                            <a href="#section4" class="toc-link">4. 迭代优化你的提示词</a>
+                        </li>
+                        <li class="toc-item">
+                            <a href="#section5" class="toc-link">总结</a>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- 相关推荐 -->
+                <div class="sidebar-card">
+                    <h3 class="sidebar-title">相关推荐</h3>
+                    <div class="related-list">
+                        <a href="#" class="related-item">
+                            <div class="related-cover"></div>
+                            <div class="related-info">
+                                <div class="related-title">批量生成情绪「案视频」教程</div>
+                                <div class="related-date">2025-10-25</div>
+                            </div>
+                        </a>
+                        <a href="#" class="related-item">
+                            <div class="related-cover"></div>
+                            <div class="related-info">
+                                <div class="related-title">AI生成中年emo视频教程</div>
+                                <div class="related-date">2025-10-24</div>
+                            </div>
+                        </a>
+                        <a href="#" class="related-item">
+                            <div class="related-cover"></div>
+                            <div class="related-info">
+                                <div class="related-title">教你使用提示词打造舒适体验</div>
+                                <div class="related-date">2025-10-23</div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <script>
+        // 目录高亮（简化版）
+        const tocLinks = document.querySelectorAll('.toc-link');
+        tocLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                tocLinks.forEach(l => l.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // 分享按钮
+        document.querySelectorAll('.share-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const title = this.getAttribute('title');
+                alert(`分享到${title}`);
+            });
+        });
+    </script>
+</body>
+</html>
+

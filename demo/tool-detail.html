@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatGPT - AI工具详情</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            background-color: #F9FAFB;
+            color: #111827;
+        }
+
+        /* 顶部导航栏（复用首页样式） */
+        .navbar {
+            height: 64px;
+            background: #FFFFFF;
+            border-bottom: 1px solid #E5E7EB;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            padding: 0 32px;
+        }
+
+        .navbar-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 20px;
+            font-weight: 700;
+            color: #4F46E5;
+        }
+
+        .navbar-logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+            border-radius: 8px;
+        }
+
+        /* 面包屑导航 */
+        .breadcrumb {
+            margin-top: 80px;
+            padding: 0 32px;
+            max-width: 1400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .breadcrumb-list {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            font-size: 14px;
+            color: #6B7280;
+            padding: 16px 0;
+        }
+
+        .breadcrumb-link {
+            color: #6B7280;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .breadcrumb-link:hover {
+            color: #4F46E5;
+        }
+
+        .breadcrumb-separator {
+            color: #D1D5DB;
+        }
+
+        .breadcrumb-current {
+            color: #111827;
+            font-weight: 500;
+        }
+
+        /* 主容器 */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 32px 64px;
+        }
+
+        /* 工具头部信息 */
+        .tool-header {
+            background: #FFFFFF;
+            border-radius: 12px;
+            padding: 32px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            display: flex;
+            gap: 24px;
+        }
+
+        .tool-logo-large {
+            width: 80px;
+            height: 80px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+            flex-shrink: 0;
+        }
+
+        .tool-header-content {
+            flex: 1;
+        }
+
+        .tool-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 12px;
+        }
+
+        .tool-summary {
+            font-size: 16px;
+            color: #6B7280;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+
+        .tool-meta {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .tool-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            color: #6B7280;
+        }
+
+        .tool-meta-badge {
+            padding: 6px 12px;
+            background: #EEF2FF;
+            color: #4F46E5;
+            border-radius: 16px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .tool-meta-badge.free {
+            background: #D1FAE5;
+            color: #059669;
+        }
+
+        .tool-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-primary {
+            padding: 12px 32px;
+            background: #4F46E5;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary:hover {
+            background: #4338CA;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        .btn-secondary {
+            padding: 12px 32px;
+            background: #FFFFFF;
+            color: #4F46E5;
+            border: 2px solid #4F46E5;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background: #EEF2FF;
+        }
+
+        /* 主内容布局 */
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 24px;
+        }
+
+        .content-column {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* 内容卡片 */
+        .content-card {
+            background: #FFFFFF;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .content-card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #F3F4F6;
+        }
+
+        /* 网站截图 */
+        .tool-screenshot {
+            width: 100%;
+            height: 400px;
+            background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        /* 详细介绍 */
+        .tool-description {
+            font-size: 15px;
+            line-height: 1.8;
+            color: #374151;
+        }
+
+        .tool-description p {
+            margin-bottom: 12px;
+        }
+
+        /* 主要功能列表 */
+        .features-list {
+            list-style: none;
+        }
+
+        .features-list li {
+            padding: 12px 0;
+            border-bottom: 1px solid #F3F4F6;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 15px;
+            color: #374151;
+        }
+
+        .features-list li:last-child {
+            border-bottom: none;
+        }
+
+        .feature-icon {
+            width: 20px;
+            height: 20px;
+            background: #10B981;
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        /* 侧边栏 */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* 评分区域 */
+        .rating-section {
+            text-align: center;
+        }
+
+        .rating-average {
+            font-size: 48px;
+            font-weight: 700;
+            color: #4F46E5;
+            margin-bottom: 8px;
+        }
+
+        .rating-stars {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .star {
+            font-size: 28px;
+            color: #D1D5DB;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .star.filled {
+            color: #FBBF24;
+        }
+
+        .star:hover {
+            transform: scale(1.15);
+        }
+
+        .rating-count {
+            font-size: 14px;
+            color: #6B7280;
+            margin-bottom: 20px;
+        }
+
+        .rating-bars {
+            text-align: left;
+        }
+
+        .rating-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .rating-bar-label {
+            width: 30px;
+            color: #6B7280;
+        }
+
+        .rating-bar-track {
+            flex: 1;
+            height: 6px;
+            background: #F3F4F6;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .rating-bar-fill {
+            height: 100%;
+            background: #FBBF24;
+            transition: width 0.3s ease;
+        }
+
+        .rating-bar-count {
+            width: 30px;
+            text-align: right;
+            color: #9CA3AF;
+        }
+
+        /* 工具信息 */
+        .tool-info-list {
+            list-style: none;
+        }
+
+        .tool-info-item {
+            padding: 12px 0;
+            border-bottom: 1px solid #F3F4F6;
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+        }
+
+        .tool-info-item:last-child {
+            border-bottom: none;
+        }
+
+        .tool-info-label {
+            color: #6B7280;
+        }
+
+        .tool-info-value {
+            color: #111827;
+            font-weight: 500;
+        }
+
+        .tool-info-value.yes {
+            color: #10B981;
+        }
+
+        .tool-info-value.no {
+            color: #EF4444;
+        }
+
+        /* 评论区 */
+        .comments-section {
+            margin-top: 24px;
+        }
+
+        .comment-form {
+            margin-bottom: 24px;
+            padding: 20px;
+            background: #F9FAFB;
+            border-radius: 8px;
+        }
+
+        .comment-textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 12px;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            margin-bottom: 12px;
+        }
+
+        .comment-textarea:focus {
+            outline: none;
+            border-color: #4F46E5;
+        }
+
+        .comment-submit {
+            padding: 10px 24px;
+            background: #4F46E5;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .comment-submit:hover {
+            background: #4338CA;
+        }
+
+        .comment-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .comment-item {
+            padding: 16px;
+            background: #FFFFFF;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .comment-author {
+            font-size: 14px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .comment-date {
+            font-size: 12px;
+            color: #9CA3AF;
+        }
+
+        .comment-content {
+            font-size: 14px;
+            color: #374151;
+            line-height: 1.6;
+        }
+
+        /* 动画 */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.4s ease-in-out;
+        }
+
+        /* 响应式 */
+        @media (max-width: 1023px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 767px) {
+            .container {
+                padding: 0 16px 32px;
+            }
+            .tool-header {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+            .tool-actions {
+                width: 100%;
+                flex-direction: column;
+            }
+            .btn-primary, .btn-secondary {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar">
+        <div class="navbar-logo">
+            <div class="navbar-logo-icon"></div>
+            <span>AI工具导航</span>
+        </div>
+    </nav>
+
+    <!-- 面包屑导航 -->
+    <div class="breadcrumb">
+        <div class="breadcrumb-list">
+            <a href="#" class="breadcrumb-link">首页</a>
+            <span class="breadcrumb-separator">/</span>
+            <a href="#" class="breadcrumb-link">AI写作工具</a>
+            <span class="breadcrumb-separator">/</span>
+            <span class="breadcrumb-current">ChatGPT</span>
+        </div>
+    </div>
+
+    <!-- 主容器 -->
+    <div class="container fade-in">
+        <!-- 工具头部信息 -->
+        <div class="tool-header">
+            <div class="tool-logo-large"></div>
+            <div class="tool-header-content">
+                <h1 class="tool-title">ChatGPT</h1>
+                <p class="tool-summary">OpenAI开发的强大对话式AI助手，基于GPT-4架构，支持多轮对话、代码生成、文本创作等多种任务，是目前最受欢迎的AI助手之一。</p>
+                <div class="tool-meta">
+                    <div class="tool-meta-item">
+                        <span>🏷️</span>
+                        <span>AI写作工具</span>
+                    </div>
+                    <span class="tool-meta-badge">付费</span>
+                    <span class="tool-meta-badge">API可用</span>
+                    <span class="tool-meta-badge">需要登录</span>
+                    <span class="tool-meta-badge">中文支持</span>
+                </div>
+                <div class="tool-actions">
+                    <button class="btn-primary" onclick="alert('跳转到官网...')">访问官网 →</button>
+                    <button class="btn-secondary">收藏工具</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主内容布局 -->
+        <div class="main-content">
+            <!-- 左侧内容列 -->
+            <div class="content-column">
+                <!-- 网站截图 -->
+                <div class="content-card">
+                    <h2 class="content-card-title">网站截图</h2>
+                    <div class="tool-screenshot"></div>
+                    <p style="font-size: 13px; color: #9CA3AF; text-align: center;">ChatGPT官网界面预览</p>
+                </div>
+
+                <!-- 详细介绍 -->
+                <div class="content-card">
+                    <h2 class="content-card-title">详细介绍</h2>
+                    <div class="tool-description">
+                        <p>ChatGPT是由OpenAI开发的一款基于GPT-4架构的大型语言模型，它能够理解和生成自然语言文本，进行多轮对话，并在各种任务中提供帮助。</p>
+                        <p>作为目前最受欢迎的AI助手之一，ChatGPT在文本创作、代码生成、问题解答、语言翻译等领域表现出色。它不仅能够理解上下文，还能根据用户的需求调整回答的风格和深度。</p>
+                        <p>ChatGPT提供免费版和付费版（ChatGPT Plus），付费版用户可以享受更快的响应速度、优先访问新功能以及使用更强大的GPT-4模型。此外，OpenAI还提供了ChatGPT API，开发者可以将其集成到自己的应用中。</p>
+                    </div>
+                </div>
+
+                <!-- 主要功能 -->
+                <div class="content-card">
+                    <h2 class="content-card-title">主要功能</h2>
+                    <ul class="features-list">
+                        <li>
+                            <div class="feature-icon"></div>
+                            <span><strong>多轮对话：</strong>能够记住对话上下文，进行连贯的多轮交流，理解复杂的对话逻辑。</span>
+                        </li>
+                        <li>
+                            <div class="feature-icon"></div>
+                            <span><strong>文本创作：</strong>可以生成各种类型的文本内容，包括文章、故事、诗歌、邮件等。</span>
+                        </li>
+                        <li>
+                            <div class="feature-icon"></div>
+                            <span><strong>代码生成：</strong>支持多种编程语言的代码编写、调试和解释，是程序员的得力助手。</span>
+                        </li>
+                        <li>
+                            <div class="feature-icon"></div>
+                            <span><strong>知识问答：</strong>可以回答各种领域的问题，提供详细的解释和分析。</span>
+                        </li>
+                        <li>
+                            <div class="feature-icon"></div>
+                            <span><strong>语言翻译：</strong>支持多种语言之间的翻译，并能解释语言细微差别。</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- 适用场景 -->
+                <div class="content-card">
+                    <h2 class="content-card-title">适用场景</h2>
+                    <div class="tool-description">
+                        <p>• <strong>内容创作者：</strong>用于生成博客文章、社交媒体内容、营销文案等。</p>
+                        <p>• <strong>程序员：</strong>辅助编写代码、调试程序、学习新技术。</p>
+                        <p>• <strong>学生：</strong>帮助理解复杂概念、写作业、准备考试。</p>
+                        <p>• <strong>研究人员：</strong>快速查找信息、总结文献、生成研究思路。</p>
+                        <p>• <strong>企业用户：</strong>客户服务、数据分析、自动化任务处理。</p>
+                    </div>
+                </div>
+
+                <!-- 评论区 -->
+                <div class="content-card comments-section">
+                    <h2 class="content-card-title">用户评论</h2>
+                    
+                    <div class="comment-form">
+                        <textarea class="comment-textarea" placeholder="写下你的使用体验...（每个IP仅可评论一次）"></textarea>
+                        <button class="comment-submit">提交评论</button>
+                    </div>
+
+                    <div class="comment-list">
+                        <div class="comment-item">
+                            <div class="comment-header">
+                                <span class="comment-author">用户 182.***.***.12</span>
+                                <span class="comment-date">2025-10-25</span>
+                            </div>
+                            <div class="comment-content">
+                                非常好用的AI助手，回答问题很准确，代码生成功能特别强大，大大提高了我的工作效率！
+                            </div>
+                        </div>
+                        <div class="comment-item">
+                            <div class="comment-header">
+                                <span class="comment-author">用户 124.***.***.88</span>
+                                <span class="comment-date">2025-10-24</span>
+                            </div>
+                            <div class="comment-content">
+                                GPT-4的回答质量确实很高，但是免费版的响应速度有时候比较慢，建议有长期需求的升级Plus版本。
+                            </div>
+                        </div>
+                        <div class="comment-item">
+                            <div class="comment-header">
+                                <span class="comment-author">用户 116.***.***.45</span>
+                                <span class="comment-date">2025-10-23</span>
+                            </div>
+                            <div class="comment-content">
+                                中文支持很好，对话非常自然，用来写文章、做翻译都很方便，推荐！
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧边栏 -->
+            <div class="sidebar">
+                <!-- 评分区域 -->
+                <div class="content-card rating-section">
+                    <h3 class="content-card-title">用户评分</h3>
+                    <div class="rating-average">4.8</div>
+                    <div class="rating-stars">
+                        <span class="star filled">★</span>
+                        <span class="star filled">★</span>
+                        <span class="star filled">★</span>
+                        <span class="star filled">★</span>
+                        <span class="star">★</span>
+                    </div>
+                    <div class="rating-count">基于 1,234 个评分</div>
+                    <div class="rating-bars">
+                        <div class="rating-bar">
+                            <span class="rating-bar-label">5星</span>
+                            <div class="rating-bar-track">
+                                <div class="rating-bar-fill" style="width: 85%"></div>
+                            </div>
+                            <span class="rating-bar-count">850</span>
+                        </div>
+                        <div class="rating-bar">
+                            <span class="rating-bar-label">4星</span>
+                            <div class="rating-bar-track">
+                                <div class="rating-bar-fill" style="width: 10%"></div>
+                            </div>
+                            <span class="rating-bar-count">124</span>
+                        </div>
+                        <div class="rating-bar">
+                            <span class="rating-bar-label">3星</span>
+                            <div class="rating-bar-track">
+                                <div class="rating-bar-fill" style="width: 3%"></div>
+                            </div>
+                            <span class="rating-bar-count">37</span>
+                        </div>
+                        <div class="rating-bar">
+                            <span class="rating-bar-label">2星</span>
+                            <div class="rating-bar-track">
+                                <div class="rating-bar-fill" style="width: 1%"></div>
+                            </div>
+                            <span class="rating-bar-count">12</span>
+                        </div>
+                        <div class="rating-bar">
+                            <span class="rating-bar-label">1星</span>
+                            <div class="rating-bar-track">
+                                <div class="rating-bar-fill" style="width: 1%"></div>
+                            </div>
+                            <span class="rating-bar-count">11</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 工具信息 -->
+                <div class="content-card">
+                    <h3 class="content-card-title">工具信息</h3>
+                    <ul class="tool-info-list">
+                        <li class="tool-info-item">
+                            <span class="tool-info-label">价格类型</span>
+                            <span class="tool-info-value">免费/付费</span>
+                        </li>
+                        <li class="tool-info-item">
+                            <span class="tool-info-label">需要登录</span>
+                            <span class="tool-info-value yes">是</span>
+                        </li>
+                        <li class="tool-info-item">
+                            <span class="tool-info-label">提供API</span>
+                            <span class="tool-info-value yes">是</span>
+                        </li>
+                        <li class="tool-info-item">
+                            <span class="tool-info-label">中文支持</span>
+                            <span class="tool-info-value yes">支持</span>
+                        </li>
+                        <li class="tool-info-item">
+                            <span class="tool-info-label">浏览次数</span>
+                            <span class="tool-info-value">12,345</span>
+                        </li>
+                        <li class="tool-info-item">
+                            <span class="tool-info-label">更新时间</span>
+                            <span class="tool-info-value">2025-10-26</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- 相关工具 -->
+                <div class="content-card">
+                    <h3 class="content-card-title">相关工具</h3>
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <a href="#" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; padding: 8px; border-radius: 8px; transition: background 0.2s;">
+                            <div style="width: 40px; height: 40px; border-radius: 8px; background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);"></div>
+                            <div>
+                                <div style="font-size: 14px; font-weight: 600; color: #111827;">Claude</div>
+                                <div style="font-size: 12px; color: #9CA3AF;">Anthropic AI助手</div>
+                            </div>
+                        </a>
+                        <a href="#" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; padding: 8px; border-radius: 8px; transition: background 0.2s;">
+                            <div style="width: 40px; height: 40px; border-radius: 8px; background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);"></div>
+                            <div>
+                                <div style="font-size: 14px; font-weight: 600; color: #111827;">文心一言</div>
+                                <div style="font-size: 12px; color: #9CA3AF;">百度AI助手</div>
+                            </div>
+                        </a>
+                        <a href="#" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; padding: 8px; border-radius: 8px; transition: background 0.2s;">
+                            <div style="width: 40px; height: 40px; border-radius: 8px; background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);"></div>
+                            <div>
+                                <div style="font-size: 14px; font-weight: 600; color: #111827;">通义千问</div>
+                                <div style="font-size: 12px; color: #9CA3AF;">阿里云AI助手</div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 评分星星交互
+        const stars = document.querySelectorAll('.rating-stars .star');
+        let currentRating = 4;
+
+        stars.forEach((star, index) => {
+            star.addEventListener('click', function() {
+                currentRating = index + 1;
+                updateStars();
+                alert(`您给这个工具评了 ${currentRating} 星！`);
+            });
+
+            star.addEventListener('mouseenter', function() {
+                highlightStars(index + 1);
+            });
+        });
+
+        document.querySelector('.rating-stars').addEventListener('mouseleave', function() {
+            updateStars();
+        });
+
+        function highlightStars(count) {
+            stars.forEach((star, index) => {
+                if (index < count) {
+                    star.classList.add('filled');
+                } else {
+                    star.classList.remove('filled');
+                }
+            });
+        }
+
+        function updateStars() {
+            highlightStars(currentRating);
+        }
+
+        // 评论提交
+        document.querySelector('.comment-submit').addEventListener('click', function() {
+            const textarea = document.querySelector('.comment-textarea');
+            if (textarea.value.trim()) {
+                alert('评论已提交，等待审核！');
+                textarea.value = '';
+            } else {
+                alert('请输入评论内容！');
+            }
+        });
+    </script>
+</body>
+</html>
+

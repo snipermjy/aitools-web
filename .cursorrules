@@ -1,0 +1,695 @@
+# AI工具导航站 - Cursor AI 开发规则
+
+## 项目概述
+
+这是一个出海的AI工具导航站项目，目标是在搜索引擎中获得良好排名，为用户提供优质的AI工具发现和推荐服务。
+
+**技术栈：**
+- 前端：Next.js 14+ (App Router) + React 18+ + TypeScript + TailwindCSS
+- 后端：Next.js API Routes
+- 数据库：Supabase (PostgreSQL)
+- 图片存储：Cloudflare R2
+- AI服务：硅基流动 DeepSeek API
+- 截图服务：Puppeteer/Playwright
+- 部署：Vercel (前端) + 本地 (后台管理+爬虫)
+
+**项目结构：**
+```
+aitools/
+├── frontend/          # 前端项目（部署到Vercel）
+├── admin/            # 后台管理+爬虫（本地运行）
+├── database/         # 数据库初始化脚本
+├── docs/             # 项目文档
+└── demo/             # UI演示页面
+```
+
+---
+
+## 核心开发原则
+
+### 1. 文件注释规范 ⭐⭐⭐
+
+**强制要求：每个新创建的文件必须在开头添加文件说明注释。**
+
+#### TypeScript/JavaScript 文件注释模板：
+```typescript
+/**
+ * 文件名：filename.ts
+ * 功能：简要描述这个文件的作用和功能
+ * 作者：AI Assistant
+ * 创建日期：YYYY-MM-DD
+ * 
+ * 主要功能：
+ * 1. 功能点1
+ * 2. 功能点2
+ * 3. 功能点3
+ * 
+ * 依赖：列出主要的外部依赖
+ * 使用场景：说明在什么情况下使用这个文件
+ */
+```
+
+#### React 组件文件注释模板：
+```typescript
+/**
+ * 组件名：ComponentName
+ * 文件：ComponentName.tsx
+ * 功能：组件的主要功能和用途
+ * 
+ * Props：
+ * - propName: 类型 - 说明
+ * 
+ * 使用示例：
+ * <ComponentName propName="value" />
+ * 
+ * 注意事项：
+ * - 特别需要注意的点
+ */
+```
+
+#### API 路由文件注释模板：
+```typescript
+/**
+ * API 路由：/api/xxx
+ * 方法：GET/POST/PUT/DELETE
+ * 功能：API的功能描述
+ * 
+ * 请求参数：
+ * - param1: 类型 - 说明
+ * 
+ * 响应格式：
+ * {
+ *   success: boolean,
+ *   data: any,
+ *   error?: string
+ * }
+ * 
+ * 权限：是否需要认证
+ */
+```
+
+#### CSS/样式文件注释：
+```css
+/**
+ * 样式文件：filename.css
+ * 功能：样式的作用范围和目的
+ * 
+ * 主要样式类：
+ * - .class-name: 说明
+ */
+```
+
+### 2. 文档生成规则 ⭐⭐⭐
+
+**重要：不要随意生成文档，避免文档臃肿！**
+
+#### 何时生成文档：
+✅ **应该生成：**
+- 用户明确要求时
+- 复杂的架构设计需要说明时
+- API接口文档（必要时）
+- 重要的配置说明（deployment、setup等）
+
+❌ **不应该生成：**
+- 简单功能的说明文档
+- 重复的README
+- 过于细节的操作步骤文档
+- 每个组件的单独文档
+
+#### 文档命名规范：
+- `README.md` - 项目总览（每个主目录一个）
+- `API.md` - API文档（如果需要）
+- `DEPLOYMENT.md` - 部署文档
+- `CHANGELOG.md` - 变更日志（重要更新时）
+
+### 3. Bug修复流程 ⭐⭐⭐
+
+**关键原则：修复问题前先全面分析，给出最优解，避免引入新问题。**
+
+#### 标准Bug修复流程：
+
+**第一步：问题诊断**
+```
+1. 仔细阅读错误信息和日志
+2. 检查相关文件的代码
+3. 使用 grep/codebase_search 全局搜索相关代码
+4. 检查最近的修改历史
+5. 验证数据库schema和API接口
+```
+
+**第二步：影响分析**
+```
+在修复前，必须分析：
+1. 这个问题影响哪些功能？
+2. 相关的文件有哪些？
+3. 是否有其他地方使用了相同的模式？
+4. 修复后会影响哪些地方？
+```
+
+**第三步：方案讨论**
+```
+向用户呈现：
+1. 问题的根本原因
+2. 推荐的解决方案（最优解）
+3. 为什么这是最优解
+4. 可能的副作用和注意事项
+
+❌ 不要：提供多个方案让用户选择（除非真的需要用户决策）
+✅ 应该：给出经过深思熟虑的最优解
+```
+
+**第四步：实施修复**
+```
+1. 一次性修复所有相关文件
+2. 确保代码风格一致
+3. 添加必要的注释说明修复原因
+4. 运行 read_lints 检查是否引入新错误
+```
+
+**第五步：验证测试**
+```
+1. 检查修复是否解决了原问题
+2. 检查是否引入了新问题
+3. 验证相关功能是否正常
+4. 提示用户测试关键路径
+```
+
+### 4. 代码规范
+
+#### TypeScript规范：
+```typescript
+// ✅ 好的实践
+interface UserProps {
+  id: string;
+  name: string;
+  email?: string;
+}
+
+const fetchUser = async (id: string): Promise<UserProps> => {
+  // 实现
+};
+
+// ❌ 避免
+const fetchUser = async (id: any) => {
+  // 没有类型定义
+};
+```
+
+#### React组件规范：
+```typescript
+// ✅ 使用函数组件和Hooks
+export const ToolCard: React.FC<ToolCardProps> = ({ tool }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  
+  return (
+    <div className="tool-card">
+      {/* JSX */}
+    </div>
+  );
+};
+
+// ✅ Props类型定义
+interface ToolCardProps {
+  tool: Tool;
+  onSelect?: (tool: Tool) => void;
+}
+
+// ✅ 使用有意义的变量名
+const handleToolClick = () => { /* ... */ };
+
+// ❌ 避免
+const handleClick = () => { /* ... */ };
+```
+
+#### CSS/TailwindCSS规范：
+```typescript
+// ✅ 使用TailwindCSS utility类
+<div className="flex items-center gap-4 p-6 rounded-lg bg-white shadow-sm hover:shadow-md transition-all">
+
+// ✅ 复杂样式提取到组件级别
+const cardStyles = "flex items-center gap-4 p-6 rounded-lg bg-white shadow-sm hover:shadow-md transition-all";
+
+// ❌ 避免内联样式（除非动态值）
+<div style={{ padding: '24px' }}>
+```
+
+#### 命名规范：
+```typescript
+// 文件命名
+// ✅ 组件：PascalCase
+ToolCard.tsx
+CategoryList.tsx
+
+// ✅ 工具函数：camelCase
+formatDate.ts
+validateEmail.ts
+
+// ✅ 类型定义：PascalCase
+types/Tool.ts
+types/Category.ts
+
+// ✅ 常量：UPPER_SNAKE_CASE
+const API_BASE_URL = 'https://api.example.com';
+const MAX_ITEMS_PER_PAGE = 20;
+
+// 变量命名
+// ✅ 清晰描述用途
+const userToolsList = [];
+const isAuthenticated = false;
+const handleSubmitForm = () => {};
+
+// ❌ 避免
+const data = [];
+const flag = false;
+const fn = () => {};
+```
+
+### 5. Next.js特定规范
+
+#### App Router结构：
+```typescript
+// ✅ 正确的文件结构
+app/
+  layout.tsx          // 根布局
+  page.tsx           // 首页
+  tools/
+    page.tsx         // /tools
+    [slug]/
+      page.tsx       // /tools/[slug]
+  api/
+    tools/
+      route.ts       // API路由
+```
+
+#### 服务端组件 vs 客户端组件：
+```typescript
+// ✅ 默认使用服务端组件（不需要'use client'）
+// app/tools/page.tsx
+export default async function ToolsPage() {
+  const tools = await getTools(); // 可以直接await
+  return <ToolsList tools={tools} />;
+}
+
+// ✅ 需要交互时使用客户端组件
+// components/ToolCard.tsx
+'use client';
+
+export function ToolCard({ tool }: ToolCardProps) {
+  const [liked, setLiked] = useState(false);
+  return (
+    <div onClick={() => setLiked(!liked)}>
+      {/* ... */}
+    </div>
+  );
+}
+```
+
+#### 数据获取：
+```typescript
+// ✅ 服务端获取数据
+async function getTools() {
+  const { data, error } = await supabase
+    .from('tools')
+    .select('*')
+    .eq('status', 'published');
+    
+  if (error) throw error;
+  return data;
+}
+
+// ✅ 使用缓存控制
+export const revalidate = 3600; // 1小时后重新验证
+```
+
+### 6. Supabase数据库操作规范
+
+#### 查询规范：
+```typescript
+// ✅ 始终处理错误
+const { data, error } = await supabase
+  .from('tools')
+  .select('*');
+
+if (error) {
+  console.error('Database error:', error);
+  throw new Error('Failed to fetch tools');
+}
+
+// ✅ 使用类型安全
+interface Tool {
+  id: string;
+  name: string;
+  // ...
+}
+
+const { data } = await supabase
+  .from('tools')
+  .select<'*', Tool>('*');
+
+// ✅ 使用过滤和排序
+const { data } = await supabase
+  .from('tools')
+  .select('*')
+  .eq('status', 'published')
+  .order('created_at', { ascending: false })
+  .limit(10);
+```
+
+#### 避免N+1查询：
+```typescript
+// ✅ 使用JOIN
+const { data } = await supabase
+  .from('tools')
+  .select(`
+    *,
+    category:categories(name),
+    tags:tool_tags(tag:tags(name))
+  `);
+
+// ❌ 避免
+const tools = await getTools();
+for (const tool of tools) {
+  tool.category = await getCategory(tool.category_id); // N+1问题
+}
+```
+
+### 7. API设计规范
+
+#### RESTful API规范：
+```typescript
+// ✅ 标准响应格式
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+  };
+  meta?: {
+    page?: number;
+    total?: number;
+  };
+}
+
+// ✅ 错误处理
+try {
+  const result = await someOperation();
+  return NextResponse.json({
+    success: true,
+    data: result
+  });
+} catch (error) {
+  return NextResponse.json({
+    success: false,
+    error: {
+      code: 'OPERATION_FAILED',
+      message: error.message
+    }
+  }, { status: 500 });
+}
+```
+
+#### 状态码使用：
+```
+200 OK - 成功获取数据
+201 Created - 成功创建资源
+400 Bad Request - 请求参数错误
+401 Unauthorized - 未认证
+403 Forbidden - 无权限
+404 Not Found - 资源不存在
+500 Internal Server Error - 服务器错误
+```
+
+### 8. 性能优化规范
+
+#### 图片优化：
+```typescript
+// ✅ 使用Next.js Image组件
+import Image from 'next/image';
+
+<Image
+  src={tool.logo_url}
+  alt={tool.name}
+  width={48}
+  height={48}
+  className="rounded-lg"
+  loading="lazy"
+/>
+
+// ✅ 为R2图片设置适当的缓存
+```
+
+#### 代码分割：
+```typescript
+// ✅ 动态导入大型组件
+const HeavyComponent = dynamic(() => import('./HeavyComponent'), {
+  loading: () => <LoadingSpinner />,
+  ssr: false
+});
+```
+
+### 9. SEO优化规范
+
+#### Metadata：
+```typescript
+// ✅ 每个页面设置metadata
+export const metadata: Metadata = {
+  title: '工具名称 - AI工具导航',
+  description: '工具的详细描述，50-160字',
+  keywords: ['AI工具', '关键词1', '关键词2'],
+  openGraph: {
+    title: '工具名称',
+    description: '描述',
+    images: ['/og-image.jpg'],
+  },
+};
+```
+
+#### 结构化数据：
+```typescript
+// ✅ 添加JSON-LD
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: tool.name,
+  description: tool.description,
+  // ...
+};
+
+<script
+  type="application/ld+json"
+  dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+/>
+```
+
+### 10. 安全规范
+
+#### 输入验证：
+```typescript
+// ✅ 验证用户输入
+import { z } from 'zod';
+
+const toolSchema = z.object({
+  name: z.string().min(1).max(100),
+  url: z.string().url(),
+  description: z.string().max(500),
+});
+
+const result = toolSchema.safeParse(input);
+if (!result.success) {
+  return { error: result.error };
+}
+```
+
+#### 环境变量：
+```typescript
+// ✅ 使用环境变量存储敏感信息
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+// ✅ 验证必需的环境变量
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing required environment variables');
+}
+```
+
+### 11. 测试规范
+
+#### 组件测试：
+```typescript
+// ✅ 编写有意义的测试
+describe('ToolCard', () => {
+  it('should render tool information', () => {
+    const tool = { name: 'Test Tool', description: 'Test' };
+    render(<ToolCard tool={tool} />);
+    expect(screen.getByText('Test Tool')).toBeInTheDocument();
+  });
+  
+  it('should call onSelect when clicked', () => {
+    const onSelect = jest.fn();
+    render(<ToolCard tool={tool} onSelect={onSelect} />);
+    fireEvent.click(screen.getByRole('button'));
+    expect(onSelect).toHaveBeenCalledWith(tool);
+  });
+});
+```
+
+### 12. Git提交规范
+
+#### Commit Message格式：
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+**Types:**
+- feat: 新功能
+- fix: Bug修复
+- docs: 文档更新
+- style: 代码格式（不影响功能）
+- refactor: 重构
+- test: 测试
+- chore: 构建过程或辅助工具的变动
+
+**示例：**
+```
+feat(tools): add tool rating feature
+
+- Add rating component
+- Add rating API endpoint
+- Update tool card to show rating
+
+Closes #123
+```
+
+### 13. 代码审查清单
+
+在提交代码前，确保：
+- [ ] 文件开头有说明注释
+- [ ] 类型定义完整（TypeScript）
+- [ ] 错误处理完善
+- [ ] 没有console.log（除非必要）
+- [ ] 没有未使用的导入
+- [ ] 代码格式化（Prettier）
+- [ ] 通过Lint检查
+- [ ] 响应式设计（移动端适配）
+- [ ] SEO优化（metadata、alt等）
+- [ ] 性能优化（图片、代码分割等）
+
+### 14. 常见问题解决方案
+
+#### Hydration错误：
+```typescript
+// ✅ 使用useEffect避免hydration不匹配
+const [mounted, setMounted] = useState(false);
+
+useEffect(() => {
+  setMounted(true);
+}, []);
+
+if (!mounted) return null;
+```
+
+#### 环境变量问题：
+```typescript
+// ✅ 浏览器可访问的变量必须以NEXT_PUBLIC_开头
+NEXT_PUBLIC_SUPABASE_URL=xxx  // ✅ 浏览器可用
+SUPABASE_SERVICE_KEY=xxx      // ✅ 仅服务端可用
+```
+
+---
+
+## 特殊注意事项
+
+### 本项目特定规则：
+
+1. **数据库Schema**：严格遵循 `数据库结构文档.md` 中定义的表结构
+2. **UI设计**：严格遵循 `UI设计文档.md` 中定义的配色和布局
+3. **紧凑设计**：所有UI组件应该采用紧凑设计，减少不必要的留白
+4. **广告位**：无广告时必须隐藏，不占用空间
+5. **推荐专区**：行数可配置，从 site_settings 表读取
+6. **SEO优先**：所有页面必须优化SEO（metadata、结构化数据、sitemap等）
+7. **响应式**：所有页面必须适配移动端
+8. **中文优先**：初期仅支持中文，后期扩展双语
+
+### 禁止的做法：
+
+❌ **绝对禁止：**
+- 修改数据库表结构（除非用户明确要求）
+- 改变已确定的UI设计风格和配色
+- 引入未经讨论的新依赖
+- 生成大量不必要的文档
+- 在不了解全局影响的情况下修改核心逻辑
+- 使用 any 类型（TypeScript）
+- 提交未经测试的代码
+- 忽略Linter错误
+
+### 优先级：
+
+1. 🔴 **P0 - 最高优先级：**
+   - 修复导致崩溃的Bug
+   - 数据安全问题
+   - 严重的性能问题
+
+2. 🟠 **P1 - 高优先级：**
+   - 核心功能问题
+   - SEO关键问题
+   - 用户体验问题
+
+3. 🟡 **P2 - 中优先级：**
+   - 次要功能问题
+   - UI细节优化
+   - 代码重构
+
+4. 🟢 **P3 - 低优先级：**
+   - 文档更新
+   - 代码注释补充
+   - 性能微优化
+
+---
+
+## 开发流程
+
+### 新功能开发流程：
+
+1. **理解需求**：与用户确认功能细节
+2. **设计方案**：考虑架构、数据库、UI等
+3. **讨论方案**：向用户展示方案，获得确认
+4. **编写代码**：遵循所有规范
+5. **测试验证**：确保功能正常
+6. **文档更新**：更新TODO文档
+
+### Bug修复流程（重复强调）：
+
+1. **全面诊断**：不只看表面问题，检查所有相关代码
+2. **影响分析**：评估修复的影响范围
+3. **给出最优解**：不要给多个方案，直接给最优解
+4. **一次性修复**：修复所有相关文件
+5. **全面验证**：确保没有引入新问题
+
+---
+
+## 总结
+
+**核心原则：**
+1. ✅ 每个文件必须有开头注释
+2. ✅ 不随意生成文档
+3. ✅ Bug修复前全面分析，给出最优解
+4. ✅ 代码质量优先于速度
+5. ✅ 用户体验和SEO同等重要
+
+**记住：**
+- 宁可多花时间思考，不要急于编码
+- 修复问题时要考虑全局影响
+- 每次修改都要运行Linter
+- 保持代码库的整洁和一致性
+- 当不确定时，先与用户讨论
+
+---
+
+**最后更新：** 2025-10-26
+**版本：** 1.0
+

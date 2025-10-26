@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI工具导航 - 首页演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            background-color: #F9FAFB;
+            color: #111827;
+        }
+
+        /* 顶部导航栏 */
+        .navbar {
+            height: 64px;
+            background: #FFFFFF;
+            border-bottom: 1px solid #E5E7EB;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            padding: 0 32px;
+        }
+
+        .navbar-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 20px;
+            font-weight: 700;
+            color: #4F46E5;
+        }
+
+        .navbar-logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+            border-radius: 8px;
+        }
+
+        .navbar-menu {
+            display: flex;
+            gap: 32px;
+            margin-left: 64px;
+            flex: 1;
+        }
+
+        .navbar-menu a {
+            text-decoration: none;
+            color: #6B7280;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .navbar-menu a:hover {
+            color: #4F46E5;
+        }
+
+        .navbar-menu a.active {
+            color: #4F46E5;
+            font-weight: 600;
+        }
+
+        .navbar-search-btn {
+            width: 36px;
+            height: 36px;
+            background: #F3F4F6;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .navbar-search-btn:hover {
+            background: #E5E7EB;
+        }
+
+        /* 布局容器 */
+        .layout {
+            display: flex;
+            margin-top: 64px;
+        }
+
+        /* 左侧分类导航 */
+        .sidebar {
+            width: 240px;
+            background: #FFFFFF;
+            border-right: 1px solid #E5E7EB;
+            position: fixed;
+            top: 64px;
+            bottom: 0;
+            overflow-y: auto;
+            padding: 16px 0;
+        }
+
+        .sidebar-category {
+            padding: 0 16px;
+            margin-bottom: 8px;
+        }
+
+        .sidebar-category-item {
+            display: flex;
+            align-items: center;
+            height: 40px;
+            padding: 0 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+            color: #374151;
+        }
+
+        .sidebar-category-item:hover {
+            background: #F9FAFB;
+        }
+
+        .sidebar-category-item.active {
+            background: #EEF2FF;
+            color: #4F46E5;
+            font-weight: 600;
+        }
+
+        .sidebar-category-icon {
+            margin-right: 8px;
+            font-size: 18px;
+        }
+
+        /* 主内容区 */
+        .main-content {
+            margin-left: 240px;
+            padding: 32px;
+            max-width: 1400px;
+            flex: 1;
+        }
+
+        /* 广告位 - 顶部通栏 */
+        .ad-banner {
+            background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+            height: 100px;
+            border-radius: 12px;
+            margin-bottom: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        /* 隐藏空广告位（无广告时不占用空间） */
+        .ad-banner.hidden,
+        .ad-middle.hidden {
+            display: none;
+        }
+
+        /* 搜索区域 */
+        .search-section {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 32px;
+        }
+
+        .search-box {
+            width: 600px;
+            height: 48px;
+            background: #FFFFFF;
+            border: 2px solid #E5E7EB;
+            border-radius: 24px;
+            padding: 0 24px;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #4F46E5;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+        }
+
+        /* 内容轮播区 */
+        .content-carousel {
+            background: #FFFFFF;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 32px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .carousel-tabs {
+            display: flex;
+            gap: 32px;
+            border-bottom: 2px solid #F3F4F6;
+            margin-bottom: 20px;
+        }
+
+        .carousel-tab {
+            padding: 12px 0;
+            font-size: 16px;
+            font-weight: 500;
+            color: #6B7280;
+            cursor: pointer;
+            position: relative;
+            transition: color 0.2s;
+        }
+
+        .carousel-tab.active {
+            color: #4F46E5;
+            font-weight: 600;
+        }
+
+        .carousel-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #4F46E5;
+        }
+
+        .carousel-cards {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 16px;
+            max-height: 190px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .carousel-cards::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .carousel-cards::-webkit-scrollbar-track {
+            background: #F3F4F6;
+            border-radius: 3px;
+        }
+
+        .carousel-cards::-webkit-scrollbar-thumb {
+            background: #4F46E5;
+            border-radius: 3px;
+        }
+
+        .carousel-card {
+            width: 100%;
+            height: 160px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .carousel-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .carousel-card:hover {
+            transform: scale(1.03);
+        }
+
+        .carousel-card:hover::before {
+            background: rgba(0, 0, 0, 0.6);
+        }
+
+        .carousel-card-content {
+            position: absolute;
+            inset: 0;
+            padding: 16px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .carousel-card:hover .carousel-card-content {
+            opacity: 1;
+        }
+
+        .carousel-card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .carousel-card-summary {
+            font-size: 13px;
+            line-height: 1.5;
+            opacity: 0.9;
+        }
+
+        /* 推荐专区 */
+        .featured-section {
+            margin-bottom: 32px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .section-more {
+            font-size: 14px;
+            color: #4F46E5;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .section-more:hover {
+            text-decoration: underline;
+        }
+
+        /* 工具卡片网格 */
+        .tool-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 16px;
+        }
+
+        .tool-card {
+            background: #FFFFFF;
+            border: 1px solid #E5E7EB;
+            border-radius: 10px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .tool-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            border-color: #4F46E5;
+        }
+
+        .tool-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .tool-logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+            flex-shrink: 0;
+        }
+
+        .tool-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: #111827;
+            flex: 1;
+            line-height: 1.3;
+        }
+
+        .tool-description {
+            font-size: 13px;
+            color: #6B7280;
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .tool-tags {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .tool-tag {
+            padding: 3px 10px;
+            background: #EEF2FF;
+            color: #4F46E5;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        /* 广告位 - 腰部通栏 */
+        .ad-middle {
+            background: #F3F4F6;
+            height: 100px;
+            border-radius: 12px;
+            margin: 32px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6B7280;
+            font-size: 16px;
+        }
+
+        /* 底部信息栏 */
+        .footer {
+            background: #FFFFFF;
+            border-top: 1px solid #E5E7EB;
+            padding: 32px;
+            text-align: center;
+            color: #6B7280;
+            font-size: 14px;
+            margin-top: 64px;
+        }
+
+        /* 动画 */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.4s ease-in-out;
+        }
+
+        /* 响应式 */
+        @media (max-width: 1399px) {
+            .tool-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (max-width: 1199px) {
+            .tool-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            .carousel-cards {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (max-width: 767px) {
+            .sidebar {
+                display: none;
+            }
+            .main-content {
+                margin-left: 0;
+                padding: 16px;
+            }
+            .tool-grid {
+                grid-template-columns: 1fr;
+            }
+            .search-box {
+                width: 100%;
+            }
+            .carousel-cards {
+                grid-template-columns: repeat(2, 1fr);
+                max-height: 350px;
+            }
+            .carousel-card {
+                height: 140px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar">
+        <div class="navbar-logo">
+            <div class="navbar-logo-icon"></div>
+            <span>AI工具导航</span>
+        </div>
+        <div class="navbar-menu">
+            <a href="#" class="active">AI工具箱</a>
+            <a href="#">AI大模型</a>
+            <a href="#">AI教程中心</a>
+            <a href="#">AI百科</a>
+            <a href="#">关于我们</a>
+        </div>
+        <button class="navbar-search-btn">🔍</button>
+    </nav>
+
+    <!-- 布局容器 -->
+    <div class="layout">
+        <!-- 左侧分类导航 -->
+        <aside class="sidebar">
+            <div class="sidebar-category">
+                <div class="sidebar-category-item active">
+                    <span class="sidebar-category-icon">🔥</span>
+                    推荐专区
+                </div>
+            </div>
+            <div class="sidebar-category">
+                <div class="sidebar-category-item">
+                    <span class="sidebar-category-icon">✍️</span>
+                    AI写作工具
+                </div>
+            </div>
+            <div class="sidebar-category">
+                <div class="sidebar-category-item">
+                    <span class="sidebar-category-icon">🎨</span>
+                    AI图像工具
+                </div>
+            </div>
+            <div class="sidebar-category">
+                <div class="sidebar-category-item">
+                    <span class="sidebar-category-icon">🎬</span>
+                    AI视频工具
+                </div>
+            </div>
+            <div class="sidebar-category">
+                <div class="sidebar-category-item">
+                    <span class="sidebar-category-icon">🎵</span>
+                    AI音频工具
+                </div>
+            </div>
+            <div class="sidebar-category">
+                <div class="sidebar-category-item">
+                    <span class="sidebar-category-icon">💻</span>
+                    AI编程工具
+                </div>
+            </div>
+            <div class="sidebar-category">
+                <div class="sidebar-category-item">
+                    <span class="sidebar-category-icon">📊</span>
+                    AI办公工具
+                </div>
+            </div>
+            <div class="sidebar-category">
+                <div class="sidebar-category-item">
+                    <span class="sidebar-category-icon">💬</span>
+                    AI对话聊天
+                </div>
+            </div>
+            <div class="sidebar-category">
+                <div class="sidebar-category-item">
+                    <span class="sidebar-category-icon">🎯</span>
+                    AI设计工具
+                </div>
+            </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main-content fade-in">
+            <!-- 广告位 - 顶部通栏 -->
+            <!-- 注意：如果没有广告，添加 class="hidden" 即可隐藏，不占用空间 -->
+            <!-- 示例：<div class="ad-banner hidden"> -->
+            <div class="ad-banner">
+                广告位：顶部通栏 (1920x100)
+            </div>
+
+            <!-- 搜索区域 -->
+            <div class="search-section">
+                <input type="text" class="search-box" placeholder="搜索AI工具...">
+            </div>
+
+            <!-- 内容轮播区 -->
+            <div class="content-carousel">
+                <div class="carousel-tabs">
+                    <div class="carousel-tab active">AI快讯</div>
+                    <div class="carousel-tab">AI教程</div>
+                    <div class="carousel-tab">AI百科</div>
+                </div>
+                <div class="carousel-cards">
+                    <div class="carousel-card">
+                        <div class="carousel-card-content">
+                            <div class="carousel-card-title">用AI的4个高效工作技巧</div>
+                            <div class="carousel-card-summary">告别无效对话，学会这几个实用技巧让你工作效率翻倍...</div>
+                        </div>
+                    </div>
+                    <div class="carousel-card">
+                        <div class="carousel-card-content">
+                            <div class="carousel-card-title">批量生成情绪「案视频」</div>
+                            <div class="carousel-card-summary">手把手教你如何批量生成带有情绪的高质量案例视频...</div>
+                        </div>
+                    </div>
+                    <div class="carousel-card">
+                        <div class="carousel-card-content">
+                            <div class="carousel-card-title">AI生成中年e me 视频教程</div>
+                            <div class="carousel-card-summary">超过65万点赞的纸片变鱼AI视频教程，跟着实操教程学...</div>
+                        </div>
+                    </div>
+                    <div class="carousel-card">
+                        <div class="carousel-card-content">
+                            <div class="carousel-card-title">AI制作兵马俑说唱视频教程</div>
+                            <div class="carousel-card-summary">轻松搞懂AI制作兵马俑说唱视频，本教程手把手教你...</div>
+                        </div>
+                    </div>
+                    <div class="carousel-card">
+                        <div class="carousel-card-content">
+                            <div class="carousel-card-title">教你使用提示词</div>
+                            <div class="carousel-card-summary">打造极度舒适的提示词体验，让你的AI更懂你...</div>
+                        </div>
+                    </div>
+                    <div class="carousel-card">
+                        <div class="carousel-card-content">
+                            <div class="carousel-card-title">AI制作兵马俑说唱视频</div>
+                            <div class="carousel-card-summary">轻松搞懂AI制作兵马俑说唱视频，本教程手把手教你实现创意视频...</div>
+                        </div>
+                    </div>
+                    <div class="carousel-card">
+                        <div class="carousel-card-content">
+                            <div class="carousel-card-title">深度解析Midjourney参数</div>
+                            <div class="carousel-card-summary">全面了解Midjourney的各种参数设置，让你的AI绘画更加精准...</div>
+                        </div>
+                    </div>
+                    <div class="carousel-card">
+                        <div class="carousel-card-content">
+                            <div class="carousel-card-title">Sora视频生成完全指南</div>
+                            <div class="carousel-card-summary">OpenAI最新视频生成工具Sora的使用教程和技巧分享...</div>
+                        </div>
+                    </div>
+                    <div class="carousel-card">
+                        <div class="carousel-card-content">
+                            <div class="carousel-card-title">ChatGPT商业应用案例</div>
+                            <div class="carousel-card-summary">10个ChatGPT在企业中的实际应用案例，提升业务效率...</div>
+                        </div>
+                    </div>
+                    <div class="carousel-card">
+                        <div class="carousel-card-content">
+                            <div class="carousel-card-title">AI音乐创作入门教程</div>
+                            <div class="carousel-card-summary">使用AI工具创作音乐的完整流程，从零基础到作品输出...</div>
+                        </div>
+                    </div>
+                    <div class="carousel-card">
+                        <div class="carousel-card-content">
+                            <div class="carousel-card-title">Stable Diffusion进阶技巧</div>
+                            <div class="carousel-card-summary">掌握SD的高级功能，ControlNet、LoRA等模型的使用方法...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 推荐专区 -->
+            <!-- 注意：推荐专区的显示行数可以通过后台管理系统配置 -->
+            <!-- 当前演示为1行（5个工具），实际可配置为1-N行 -->
+            <section class="featured-section">
+                <div class="section-header">
+                    <h2 class="section-title">推荐专区</h2>
+                    <a href="#" class="section-more">more+</a>
+                </div>
+                <div class="tool-grid">
+                    <div class="tool-card">
+                        <div class="tool-header">
+                            <div class="tool-logo"></div>
+                            <div class="tool-name">潮际好麦</div>
+                        </div>
+                        <div class="tool-description">一站式智能商拍平台，AI驱动的商品摄影解决方案</div>
+                        <div class="tool-tags">
+                            <span class="tool-tag">免费</span>
+                            <span class="tool-tag">中文</span>
+                        </div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-header">
+                            <div class="tool-logo"></div>
+                            <div class="tool-name">光子AI</div>
+                        </div>
+                        <div class="tool-description">AI电商服饰商拍平台，让商品摄影更简单</div>
+                        <div class="tool-tags">
+                            <span class="tool-tag">付费</span>
+                        </div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-header">
+                            <div class="tool-logo"></div>
+                            <div class="tool-name">星月写作</div>
+                        </div>
+                        <div class="tool-description">一款由国内团队开发的人工智能写作助手</div>
+                        <div class="tool-tags">
+                            <span class="tool-tag">免费试用</span>
+                            <span class="tool-tag">中文</span>
+                        </div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-header">
+                            <div class="tool-logo"></div>
+                            <div class="tool-name">蛙蛙写作</div>
+                        </div>
+                        <div class="tool-description">由杭州波形智能科技有限公司开发的AI写作助手</div>
+                        <div class="tool-tags">
+                            <span class="tool-tag">付费</span>
+                        </div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-header">
+                            <div class="tool-logo"></div>
+                            <div class="tool-name">码上飞</div>
+                        </div>
+                        <div class="tool-description">一句话生成应用的AI软件开发平台</div>
+                        <div class="tool-tags">
+                            <span class="tool-tag">免费试用</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 广告位 - 腰部通栏 -->
+            <!-- 如果没有广告，添加 class="hidden" 即可隐藏 -->
+            <div class="ad-middle">
+                广告位：腰部通栏 (1920x100)
+            </div>
+
+            <!-- AI写作工具 -->
+            <section class="featured-section">
+                <div class="section-header">
+                    <h2 class="section-title">AI写作工具</h2>
+                    <a href="#" class="section-more">more+</a>
+                </div>
+                <div class="tool-grid">
+                    <div class="tool-card">
+                        <div class="tool-header">
+                            <div class="tool-logo"></div>
+                            <div class="tool-name">ChatGPT</div>
+                        </div>
+                        <div class="tool-description">OpenAI开发的强大对话式AI助手，支持多种任务</div>
+                        <div class="tool-tags">
+                            <span class="tool-tag">付费</span>
+                            <span class="tool-tag">API</span>
+                        </div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-header">
+                            <div class="tool-logo"></div>
+                            <div class="tool-name">Claude</div>
+                        </div>
+                        <div class="tool-description">Anthropic推出的AI助手，擅长长文本处理</div>
+                        <div class="tool-tags">
+                            <span class="tool-tag">付费</span>
+                        </div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-header">
+                            <div class="tool-logo"></div>
+                            <div class="tool-name">文心一言</div>
+                        </div>
+                        <div class="tool-description">百度推出的生成式AI，中文能力出众</div>
+                        <div class="tool-tags">
+                            <span class="tool-tag">免费</span>
+                            <span class="tool-tag">中文</span>
+                        </div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-header">
+                            <div class="tool-logo"></div>
+                            <div class="tool-name">通义千问</div>
+                        </div>
+                        <div class="tool-description">阿里云推出的大语言模型，支持多模态交互</div>
+                        <div class="tool-tags">
+                            <span class="tool-tag">免费</span>
+                            <span class="tool-tag">中文</span>
+                        </div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-header">
+                            <div class="tool-logo"></div>
+                            <div class="tool-name">Jasper</div>
+                        </div>
+                        <div class="tool-description">专业的AI营销文案生成工具</div>
+                        <div class="tool-tags">
+                            <span class="tool-tag">付费</span>
+                        </div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-header">
+                            <div class="tool-logo"></div>
+                            <div class="tool-name">Copy.ai</div>
+                        </div>
+                        <div class="tool-description">快速生成营销文案的AI工具</div>
+                        <div class="tool-tags">
+                            <span class="tool-tag">免费试用</span>
+                        </div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-header">
+                            <div class="tool-logo"></div>
+                            <div class="tool-name">Notion AI</div>
+                        </div>
+                        <div class="tool-description">集成在Notion中的AI写作助手</div>
+                        <div class="tool-tags">
+                            <span class="tool-tag">付费</span>
+                        </div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-header">
+                            <div class="tool-logo"></div>
+                            <div class="tool-name">Writesonic</div>
+                        </div>
+                        <div class="tool-description">AI驱动的内容创作平台</div>
+                        <div class="tool-tags">
+                            <span class="tool-tag">付费</span>
+                        </div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-header">
+                            <div class="tool-logo"></div>
+                            <div class="tool-name">Grammarly</div>
+                        </div>
+                        <div class="tool-description">智能语法检查和写作改进工具</div>
+                        <div class="tool-tags">
+                            <span class="tool-tag">免费试用</span>
+                        </div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-header">
+                            <div class="tool-logo"></div>
+                            <div class="tool-name">DeepL Write</div>
+                        </div>
+                        <div class="tool-description">AI驱动的写作和改写工具</div>
+                        <div class="tool-tags">
+                            <span class="tool-tag">免费</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 底部信息栏 -->
+    <footer class="footer">
+        <p>AI工具导航 © 2025 | 汇集全球优质AI工具</p>
+        <p style="margin-top: 8px; font-size: 12px;">友链申请 | 免责声明 | 广告合作 | 关于我们</p>
+    </footer>
+
+    <script>
+        // 标签切换
+        document.querySelectorAll('.carousel-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.carousel-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // 搜索框焦点效果
+        const searchBox = document.querySelector('.search-box');
+        searchBox.addEventListener('focus', function() {
+            this.placeholder = '输入关键词搜索...';
+        });
+        searchBox.addEventListener('blur', function() {
+            this.placeholder = '搜索AI工具...';
+        });
+
+        // 滚动加载动画（简化版）
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.animation = 'fadeIn 0.5s ease-in-out';
+                }
+            });
+        });
+
+        document.querySelectorAll('.tool-card').forEach(card => {
+            observer.observe(card);
+        });
+    </script>
+</body>
+</html>
+
