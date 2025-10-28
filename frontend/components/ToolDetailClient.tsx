@@ -20,20 +20,26 @@
 import { useState } from 'react';
 import RatingStars from './RatingStars';
 import CommentForm from './CommentForm';
+import { useViewTracking } from '@/lib/useViewTracking';
 
 interface ToolDetailClientProps {
+  toolId: string;
   toolSlug: string;
   initialRating: number;
   initialRatingCount: number;
 }
 
 export default function ToolDetailClient({
+  toolId,
   toolSlug,
   initialRating,
   initialRatingCount,
 }: ToolDetailClientProps) {
   const [currentRating, setCurrentRating] = useState(initialRating);
   const [ratingCount, setRatingCount] = useState(initialRatingCount);
+
+  // 浏览量追踪
+  useViewTracking('tool', toolId);
 
   // 评分更新回调
   const handleRatingUpdate = (newRating: number, newCount: number) => {

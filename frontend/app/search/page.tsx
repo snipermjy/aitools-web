@@ -14,7 +14,8 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Navbar, Sidebar, Footer, SearchBox, ToolGrid, Pagination } from '@/components';
+import { Navbar, Sidebar, Footer, SearchBox, ToolGrid, Pagination, AdvancedSearchFilters } from '@/components';
+import type { SearchFilters } from '@/components/AdvancedSearchFilters';
 
 const ITEMS_PER_PAGE = 24;
 
@@ -25,40 +26,55 @@ export default function SearchPage() {
   const currentPage = parseInt(searchParams.get('page') || '1');
 
   const [categories, setCategories] = useState<any[]>([]);
+  const [tags, setTags] = useState<any[]>([]);
   const [tools, setTools] = useState<any[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState<SearchFilters>({});
 
   // 加载数据
   useEffect(() => {
     async function loadData() {
       setLoading(true);
 
-      // 获取分类
-      const { data: categoriesData } = await supabase
-        .from('categories')
-        .select('*')
-        .order('sort_order');
+      // 获取分类和标签
+      const [categoriesRes, tagsRes] = await Promise.all([
+        supabase.from('categories').select('*').order('sort_order'),
+        supabase.from('tags').select('*').order('usage_count', { ascending: false }).limit(30),
+      ]);
 
-      setCategories(categoriesData || []);
+      setCategories(categoriesRes.data || []);
+      setTags(tagsRes.data || []);
 
       // 搜索工具
       if (query) {
-        // 获取总数
-        const { count } = await supabase
+        // 构建查询
+        let queryBuilder = supabase
           .from('tools')
-          .select('*', { count: 'exact', head: true })
+          .select('*', { count: 'exact' })
           .eq('status', 'published')
           .or(`name_zh.ilike.%${query}%,name_en.ilike.%${query}%,summary_zh.ilike.%${query}%,description_zh.ilike.%${query}%`);
 
+        // 应用筛选
+        if (filters.categoryId) {
+          queryBuilder = queryBuilder.eq('category_id', filters.categoryId);
+        }
+        if (filters.pricingType) {
+          queryBuilder = queryBuilder.eq('pricing_type', filters.pricingType);
+        }
+        if (filters.requireLogin !== undefined) {
+          queryBuilder = queryBuilder.eq('require_login', filters.requireLogin);
+        }
+        if (filters.requireApi !== undefined) {
+          queryBuilder = queryBuilder.eq('require_api', filters.requireApi);
+        }
+
+        // 获取总数
+        const { count } = await queryBuilder;
         setTotalCount(count || 0);
 
         // 获取当前页数据
-        const { data } = await supabase
-          .from('tools')
-          .select('*')
-          .eq('status', 'published')
-          .or(`name_zh.ilike.%${query}%,name_en.ilike.%${query}%,summary_zh.ilike.%${query}%,description_zh.ilike.%${query}%`)
+        const { data } = await queryBuilder
           .order('rating_avg', { ascending: false })
           .range((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE - 1);
 
@@ -72,7 +88,7 @@ export default function SearchPage() {
     }
 
     loadData();
-  }, [query, currentPage]);
+  }, [query, currentPage, filters]);
 
   // 处理页码变更
   const handlePageChange = (page: number) => {
@@ -98,6 +114,15 @@ export default function SearchPage() {
                 <SearchBox placeholder="搜索AI工具..." />
               </div>
             </div>
+
+            {/* 高级筛选 */}
+            {query && (
+              <AdvancedSearchFilters
+                onFilterChange={setFilters}
+                categories={categories}
+                tags={tags}
+              />
+            )}
 
             {/* 搜索结果 */}
             {query ? (

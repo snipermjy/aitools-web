@@ -17,6 +17,7 @@ import Image from 'next/image';
 import { Metadata } from 'next';
 import { getR2Url } from '@/lib/r2';
 import { CheckCircleIcon, SparklesIcon } from '@heroicons/react/24/solid';
+import ViewTracker from '@/components/ViewTracker';
 
 interface ToolDetailPageProps {
   params: {
@@ -159,6 +160,9 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      {/* 浏览量追踪 */}
+      <ViewTracker entityType="tool" entityId={toolWithTags.id} />
+      
       {/* JSON-LD 结构化数据 */}
       <script
         type="application/ld+json"

@@ -24,10 +24,10 @@ export default async function NewsPage() {
           <h1 className="text-2xl font-bold text-text-primary">
             AI快讯管理
           </h1>
-          <button className="btn btn-primary flex items-center gap-2">
+          <Link href="/news/new" className="btn btn-primary flex items-center gap-2">
             <PlusIcon className="w-5 h-5" />
             发布快讯
-          </button>
+          </Link>
         </div>
 
         <div className="card">
