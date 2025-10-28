@@ -17,6 +17,9 @@ interface NewsDetailPageProps {
   };
 }
 
+// 缓存策略：开发环境不缓存，生产环境 60 秒重新验证
+export const revalidate = process.env.NODE_ENV === 'development' ? 0 : 60;
+
 export async function generateMetadata({ params }: NewsDetailPageProps): Promise<Metadata> {
   const { data: news } = await supabase
     .from('news')

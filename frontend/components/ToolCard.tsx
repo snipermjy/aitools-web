@@ -16,19 +16,25 @@
  * - 紧凑布局设计
  */
 
+'use client';
+
 import Link from 'next/link';
 import Image from 'next/image';
+import { useState } from 'react';
 import { StarIcon } from '@heroicons/react/24/solid';
 import { StarIcon as StarOutlineIcon } from '@heroicons/react/24/outline';
-import { Tool } from '@/types/database';
+import { Tool, ToolWithTags } from '@/types/database';
 import { formatRating, formatPricingType } from '@/lib/format';
+import { getR2Url } from '@/lib/r2';
 
 interface ToolCardProps {
-  tool: Tool;
+  tool: Tool | ToolWithTags;
   compact?: boolean;
 }
 
 export default function ToolCard({ tool, compact = true }: ToolCardProps) {
+  const [imageError, setImageError] = useState(false);
+
   // 渲染评分星星
   const renderStars = (rating: number) => {
     const fullStars = Math.floor(rating);
@@ -47,73 +53,84 @@ export default function ToolCard({ tool, compact = true }: ToolCardProps) {
     return stars;
   };
 
+  // 提取AI生成的标签（最多3个）
+  const aiTags = 'tool_tags' in tool && tool.tool_tags
+    ? tool.tool_tags
+        .map(tt => tt.tags.name_zh)
+        .slice(0, 3)
+    : [];
+
   return (
     <Link href={`/tools/${tool.slug}`}>
-      <div className="bg-white rounded-lg border border-border p-4 card-hover h-full flex flex-col">
-        {/* 顶部：Logo 和名称水平排列 */}
-        <div className="flex items-center gap-3 mb-3">
+      <div className="bg-white rounded-lg border border-border p-3 card-hover h-full flex flex-col">
+        {/* 顶部区域：Logo + 标题/标签 + 评分 */}
+        <div className="flex gap-2.5 mb-2">
           {/* Logo */}
-          <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-background">
-            {tool.logo_url ? (
+          <div className="flex-shrink-0 w-10 h-10 rounded-lg overflow-hidden bg-background">
+            {tool.logo_url && !imageError && getR2Url(tool.logo_url) ? (
               <Image
-                src={tool.logo_url}
+                src={getR2Url(tool.logo_url)!}
                 alt={tool.name_zh}
-                width={48}
-                height={48}
+                width={40}
+                height={40}
                 className="w-full h-full object-cover"
+                onError={() => setImageError(true)}
               />
             ) : (
-              <div className="w-full h-full gradient-bg flex items-center justify-center text-white font-bold text-lg">
+              <div className="w-full h-full gradient-bg flex items-center justify-center text-white font-bold text-base">
                 {tool.name_zh[0]}
               </div>
             )}
           </div>
 
-          {/* 工具名称 */}
-          <h3 className="flex-1 text-[15px] font-semibold text-text-primary line-clamp-2 leading-snug">
-            {tool.name_zh}
-          </h3>
-        </div>
-
-        {/* 中部：简介 */}
-        <p className="text-[13px] text-text-secondary line-clamp-2 mb-3 flex-1">
-          {tool.summary_zh || tool.description_zh || '暂无描述'}
-        </p>
-
-        {/* 底部：标签和评分 */}
-        <div className="space-y-2">
-          {/* 价格标签 */}
-          <div className="flex items-center gap-2">
-            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-              tool.pricing_type === 'free'
-                ? 'bg-green-50 text-green-700'
-                : tool.pricing_type === 'paid'
-                ? 'bg-blue-50 text-blue-700'
-                : 'bg-purple-50 text-purple-700'
-            }`}>
-              {formatPricingType(tool.pricing_type)}
-            </span>
-
-            {/* 其他标签（可选） */}
-            {tool.require_login === false && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-50 text-gray-700">
-                无需登录
-              </span>
+          {/* 中间：标题 + AI标签（垂直排列，高度与Logo对齐） */}
+          <div className="flex-1 flex flex-col justify-between min-w-0 h-10">
+            {/* 第一行：工具名称 + 评分 */}
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-[13px] font-semibold text-text-primary line-clamp-1 leading-tight flex-1">
+                {tool.name_zh}
+              </h3>
+              {/* 评分 */}
+              {tool.rating_count > 0 && (
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <div className="flex items-center gap-0.5">
+                    {renderStars(tool.rating_avg)}
+                  </div>
+                  <span className="text-[10px] text-text-secondary whitespace-nowrap">
+                    {formatRating(tool.rating_avg)} ({tool.rating_count})
+                  </span>
+                </div>
+              )}
+            </div>
+            
+            {/* 第二行：AI标签（单行显示，不换行） */}
+            {aiTags.length > 0 ? (
+              <div className="flex items-center gap-1 overflow-hidden">
+                {aiTags.map((tag, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 whitespace-nowrap flex-shrink-0"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center gap-1">
+                {tool.require_login === false && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-700 whitespace-nowrap">
+                    无需登录
+                  </span>
+                )}
+              </div>
             )}
           </div>
-
-          {/* 评分 */}
-          {tool.rating_count > 0 && (
-            <div className="flex items-center gap-1">
-              <div className="flex items-center gap-0.5">
-                {renderStars(tool.rating_avg)}
-              </div>
-              <span className="text-xs text-text-secondary ml-1">
-                {formatRating(tool.rating_avg)} ({tool.rating_count})
-              </span>
-            </div>
-          )}
         </div>
+
+        {/* 简介 */}
+        <p className="text-[12px] text-text-secondary line-clamp-2 flex-1 leading-relaxed">
+          {tool.summary_zh || tool.description_zh || '暂无描述'}
+        </p>
       </div>
     </Link>
   );

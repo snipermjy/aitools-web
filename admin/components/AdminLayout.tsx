@@ -37,6 +37,7 @@ import {
   Bars3Icon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
+import { SparklesIcon } from '@heroicons/react/24/solid';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -93,8 +94,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-6 border-b border-sidebar-hover">
             <Link href="/" className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-white text-xl font-bold">AI</span>
+              <div className="w-10 h-10 bg-gradient-to-br from-primary to-purple-600 rounded-lg flex items-center justify-center shadow-md">
+                <SparklesIcon className="w-6 h-6 text-white" />
               </div>
               <span className="text-text-inverse font-semibold">
                 后台管理

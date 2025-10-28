@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS tools (
     source VARCHAR(50) DEFAULT 'manual',
     crawler_site VARCHAR(255),
     view_count INTEGER DEFAULT 0,
+    published_at TIMESTAMPTZ,
     seo_title VARCHAR(255),
     seo_description TEXT,
     seo_keywords TEXT,

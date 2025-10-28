@@ -20,6 +20,9 @@ import {
   AdBanner 
 } from '@/components';
 
+// 缓存策略：开发环境不缓存，生产环境 60 秒重新验证
+export const revalidate = process.env.NODE_ENV === 'development' ? 0 : 60;
+
 export default async function HomePage() {
   // 获取所有分类
   const { data: categories } = await supabase
@@ -27,12 +30,17 @@ export default async function HomePage() {
     .select('*')
     .order('sort_order');
 
-  // 获取推荐工具
+  // 获取推荐工具（包含标签）
   const { data: featuredTools } = await supabase
     .from('featured_tools')
     .select(`
       tool_id,
-      tools (*)
+      tools (
+        *,
+        tool_tags (
+          tags (*)
+        )
+      )
     `)
     .order('sort_order')
     .limit(10);
@@ -59,13 +67,42 @@ export default async function HomePage() {
     .order('published_at', { ascending: false })
     .limit(10);
 
-  // 获取最新发布的工具（按分类）
-  const { data: latestTools } = await supabase
-    .from('tools')
-    .select('*')
-    .eq('status', 'published')
-    .order('created_at', { ascending: false })
-    .limit(20);
+  // 为所有一级分类获取工具（每个分类5个）+ 获取最新工具时间用于排序
+  const categoryToolsMap: Record<string, any[]> = {};
+  const categoryLatestTimeMap: Record<string, string> = {};
+  const topCategories = categories?.filter(c => !c.parent_id) || [];
+  
+  for (const category of topCategories) {
+    const { data: categoryTools } = await supabase
+      .from('tools')
+      .select(`
+        *,
+        tool_tags (
+          tags (*)
+        )
+      `)
+      .eq('category_id', category.id)
+      .eq('status', 'published')
+      .order('rating_avg', { ascending: false })
+      .limit(5);
+    
+    if (categoryTools && categoryTools.length > 0) {
+      categoryToolsMap[category.id] = categoryTools;
+      
+      // 获取该分类最新工具的创建时间（用于排序）
+      const latestTool = categoryTools.reduce((latest, tool) => {
+        return new Date(tool.created_at) > new Date(latest.created_at) ? tool : latest;
+      }, categoryTools[0]);
+      categoryLatestTimeMap[category.id] = latestTool.created_at;
+    }
+  }
+
+  // 对有工具的分类按最新工具时间排序（最新的在前）
+  const sortedTopCategories = topCategories.filter(cat => categoryToolsMap[cat.id]).sort((a, b) => {
+    const timeA = categoryLatestTimeMap[a.id];
+    const timeB = categoryLatestTimeMap[b.id];
+    return new Date(timeB).getTime() - new Date(timeA).getTime();
+  });
 
   // 提取推荐工具列表
   const featuredToolsList = featuredTools?.map(ft => ft.tools).filter(Boolean) || [];
@@ -115,7 +152,7 @@ export default async function HomePage() {
                     精选优质工具
                   </span>
                 </div>
-                <ToolGrid tools={featuredToolsList as any} columns={5} />
+                <ToolGrid tools={featuredToolsList as any} columns={6} />
               </div>
             </div>
           )}
@@ -125,47 +162,47 @@ export default async function HomePage() {
             <AdBanner position="middle_banner" />
           </div>
 
-          {/* 最新工具 */}
-          {latestTools && latestTools.length > 0 && (
-            <div className="px-8 mb-6">
-              <div className="bg-white rounded-lg shadow-card p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold">🆕 最新工具</h2>
-                  <span className="text-sm text-text-secondary">
-                    {latestTools.length} 个工具
-                  </span>
+          {/* 按分类展示工具（按最新工具时间排序） */}
+          {sortedTopCategories.map((category, index) => {
+            const categoryTools = categoryToolsMap[category.id] || [];
+            const latestTime = categoryLatestTimeMap[category.id];
+            
+            // 判断是否为最近24小时内添加的工具
+            const isNew = latestTime && (Date.now() - new Date(latestTime).getTime()) < 24 * 60 * 60 * 1000;
+            
+            return (
+              <div key={category.id} className="px-8 mb-6">
+                <div className="bg-white rounded-lg shadow-card p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold flex items-center gap-2">
+                      <span>{category.icon}</span>
+                      <span>{category.name_zh}</span>
+                      {isNew && (
+                        <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-600 rounded">
+                          最新
+                        </span>
+                      )}
+                      {index === 0 && !isNew && (
+                        <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-600 rounded">
+                          最近更新
+                        </span>
+                      )}
+                    </h2>
+                    <a 
+                      href={`/category/${category.slug}`}
+                      className="text-sm text-primary hover:text-primary-hover transition-colors"
+                    >
+                      查看全部 →
+                    </a>
+                  </div>
+                  <ToolGrid tools={categoryTools} columns={6} />
                 </div>
-                <ToolGrid tools={latestTools} columns={5} />
               </div>
-            </div>
-          )}
-
-          {/* 按分类展示工具 */}
-          {categories?.filter(c => !c.parent_id).slice(0, 3).map((category) => (
-            <div key={category.id} className="px-8 mb-6">
-              <div className="bg-white rounded-lg shadow-card p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold flex items-center gap-2">
-                    <span>{category.icon}</span>
-                    <span>{category.name_zh}</span>
-                  </h2>
-                  <a 
-                    href={`/category/${category.slug}`}
-                    className="text-sm text-primary hover:text-primary-hover transition-colors"
-                  >
-                    查看全部 →
-                  </a>
-                </div>
-                {/* 这里后续会显示该分类的工具 */}
-                <div className="text-center py-8 text-text-secondary text-sm">
-                  该分类下暂无工具，请从后台添加
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
 
           {/* 开发提示（仅在没有工具时显示） */}
-          {(!latestTools || latestTools.length === 0) && (
+          {Object.keys(categoryToolsMap).length === 0 && featuredToolsList.length === 0 && (
             <div className="px-8 mb-8">
               <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
                 <h3 className="font-semibold mb-2 text-blue-900">📝 提示</h3>

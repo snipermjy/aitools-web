@@ -5,14 +5,14 @@
  * 
  * Props：
  * - tools: Tool[] - 工具列表
- * - columns: number - 列数（默认5）
+ * - columns: number - 列数（默认6）
  * 
  * 使用示例：
- * <ToolGrid tools={tools} columns={5} />
+ * <ToolGrid tools={tools} columns={6} />
  * 
  * 注意事项：
  * - 响应式网格布局
- * - 5列（桌面）、4列（平板）、3列（小平板）、1列（移动）
+ * - 6列（桌面）、4列（平板）、3列（小平板）、1列（移动）
  */
 
 import { Tool } from '@/types/database';
@@ -24,7 +24,7 @@ interface ToolGridProps {
   className?: string;
 }
 
-export default function ToolGrid({ tools, columns = 5, className = '' }: ToolGridProps) {
+export default function ToolGrid({ tools, columns = 6, className = '' }: ToolGridProps) {
   if (!tools || tools.length === 0) {
     return (
       <div className="text-center py-12 text-text-secondary">

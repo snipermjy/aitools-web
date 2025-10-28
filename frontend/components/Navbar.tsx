@@ -18,7 +18,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { MagnifyingGlassIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, Bars3Icon, XMarkIcon, SparklesIcon } from '@heroicons/react/24/solid';
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -37,8 +37,8 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo 和网站名称 */}
           <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center text-white text-xl font-bold">
-              AI
+            <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center shadow-md">
+              <SparklesIcon className="w-6 h-6 text-white" />
             </div>
             <span className="text-xl font-bold text-text-primary">
               AI工具导航
@@ -51,7 +51,7 @@ export default function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="text-sm font-medium text-text-secondary hover:text-primary transition-colors"
+                className="text-base font-medium text-text-secondary hover:text-primary transition-colors"
               >
                 {item.name}
               </Link>
@@ -90,7 +90,7 @@ export default function Navbar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="px-4 py-2 text-sm font-medium text-text-secondary hover:bg-background hover:text-primary rounded-lg transition-colors"
+                  className="px-4 py-2 text-base font-medium text-text-secondary hover:bg-background hover:text-primary rounded-lg transition-colors"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   {item.name}

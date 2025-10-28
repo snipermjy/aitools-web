@@ -16,6 +16,9 @@ export const metadata: Metadata = {
   description: 'AI相关概念和术语百科',
 };
 
+// 缓存策略：开发环境不缓存，生产环境 60 秒重新验证
+export const revalidate = process.env.NODE_ENV === 'development' ? 0 : 60;
+
 export default async function WikiPage() {
   const { data: pinnedWiki } = await supabase
     .from('wiki')

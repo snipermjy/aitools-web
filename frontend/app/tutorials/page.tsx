@@ -16,6 +16,9 @@ export const metadata: Metadata = {
   description: '精选AI工具使用教程和指南',
 };
 
+// 缓存策略：开发环境不缓存，生产环境 60 秒重新验证
+export const revalidate = process.env.NODE_ENV === 'development' ? 0 : 60;
+
 export default async function TutorialsPage() {
   const { data: pinnedTutorials } = await supabase
     .from('tutorials')

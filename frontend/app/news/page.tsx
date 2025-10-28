@@ -20,6 +20,9 @@ export const metadata: Metadata = {
   description: '最新的AI行业资讯和动态',
 };
 
+// 缓存策略：开发环境不缓存，生产环境 60 秒重新验证
+export const revalidate = process.env.NODE_ENV === 'development' ? 0 : 60;
+
 export default async function NewsPage() {
   // 获取置顶快讯
   const { data: pinnedNews } = await supabase

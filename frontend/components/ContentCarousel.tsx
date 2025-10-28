@@ -61,7 +61,7 @@ export default function ContentCarousel({
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`relative pb-3 px-2 text-sm font-medium transition-colors ${
+              className={`relative pb-3 px-2 text-base font-medium transition-colors ${
                 activeTab === tab.key
                   ? 'text-primary'
                   : 'text-text-secondary hover:text-text-primary'
@@ -77,7 +77,7 @@ export default function ContentCarousel({
         
         <Link 
           href={currentTab?.href || '/news'}
-          className="text-sm text-primary hover:text-primary-hover transition-colors"
+          className="text-base text-primary hover:text-primary-hover transition-colors"
         >
           更多 →
         </Link>

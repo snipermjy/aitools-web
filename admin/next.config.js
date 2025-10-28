@@ -17,6 +17,23 @@ const nextConfig = {
   },
   // 后台管理系统运行在本地，不需要严格的 React Strict Mode
   reactStrictMode: true,
+
+  // Webpack 配置
+  webpack: (config, { isServer }) => {
+    // 忽略 Windows 系统文件夹警告
+    if (isServer) {
+      config.watchOptions = {
+        ...config.watchOptions,
+        ignored: [
+          '**/node_modules',
+          '**/.git',
+          '**/System Volume Information',
+        ],
+      };
+    }
+
+    return config;
+  },
 };
 
 module.exports = nextConfig;

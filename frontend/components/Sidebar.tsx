@@ -56,7 +56,7 @@ export default function Sidebar({ categories }: SidebarProps) {
   return (
     <aside className="fixed left-0 top-16 bottom-0 w-60 bg-white border-r border-border overflow-y-auto">
       <div className="p-4">
-        <h2 className="text-sm font-semibold text-text-secondary mb-3 px-3">
+        <h2 className="text-base font-semibold text-text-secondary mb-3 px-3">
           工具分类
         </h2>
 
@@ -72,13 +72,13 @@ export default function Sidebar({ categories }: SidebarProps) {
                 <div className="flex items-center">
                   <Link
                     href={`/category/${category.slug}`}
-                    className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-lg text-base font-medium transition-colors ${
                       isActive(category.slug)
                         ? 'bg-primary-light text-primary'
                         : 'text-text-primary hover:bg-background'
                     }`}
                   >
-                    <span className="text-base">{category.icon || '📁'}</span>
+                    <span className="text-lg">{category.icon || '📁'}</span>
                     <span className="flex-1">{category.name_zh}</span>
                   </Link>
 
@@ -105,7 +105,7 @@ export default function Sidebar({ categories }: SidebarProps) {
                       <Link
                         key={child.id}
                         href={`/category/${child.slug}`}
-                        className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
+                        className={`block px-3 py-2 rounded-lg text-base transition-colors ${
                           isActive(child.slug)
                             ? 'bg-primary-light text-primary font-medium'
                             : 'text-text-secondary hover:bg-background hover:text-text-primary'

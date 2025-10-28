@@ -9,37 +9,79 @@
  * - 支持筛选和排序
  */
 
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Navbar, Sidebar, Footer, SearchBox, ToolGrid } from '@/components';
+import { Navbar, Sidebar, Footer, SearchBox, ToolGrid, Pagination } from '@/components';
 
-interface SearchPageProps {
-  searchParams: {
-    q?: string;
+const ITEMS_PER_PAGE = 24;
+
+export default function SearchPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const query = searchParams.get('q') || '';
+  const currentPage = parseInt(searchParams.get('page') || '1');
+
+  const [categories, setCategories] = useState<any[]>([]);
+  const [tools, setTools] = useState<any[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  // 加载数据
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true);
+
+      // 获取分类
+      const { data: categoriesData } = await supabase
+        .from('categories')
+        .select('*')
+        .order('sort_order');
+
+      setCategories(categoriesData || []);
+
+      // 搜索工具
+      if (query) {
+        // 获取总数
+        const { count } = await supabase
+          .from('tools')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'published')
+          .or(`name_zh.ilike.%${query}%,name_en.ilike.%${query}%,summary_zh.ilike.%${query}%,description_zh.ilike.%${query}%`);
+
+        setTotalCount(count || 0);
+
+        // 获取当前页数据
+        const { data } = await supabase
+          .from('tools')
+          .select('*')
+          .eq('status', 'published')
+          .or(`name_zh.ilike.%${query}%,name_en.ilike.%${query}%,summary_zh.ilike.%${query}%,description_zh.ilike.%${query}%`)
+          .order('rating_avg', { ascending: false })
+          .range((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE - 1);
+
+        setTools(data || []);
+      } else {
+        setTools([]);
+        setTotalCount(0);
+      }
+
+      setLoading(false);
+    }
+
+    loadData();
+  }, [query, currentPage]);
+
+  // 处理页码变更
+  const handlePageChange = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', page.toString());
+    router.push(`/search?${params.toString()}`);
   };
-}
 
-export default async function SearchPage({ searchParams }: SearchPageProps) {
-  const query = searchParams.q || '';
-
-  // 获取分类（用于侧边栏）
-  const { data: categories } = await supabase
-    .from('categories')
-    .select('*')
-    .order('sort_order');
-
-  // 搜索工具
-  let tools = [];
-  if (query) {
-    const { data } = await supabase
-      .from('tools')
-      .select('*')
-      .eq('status', 'published')
-      .or(`name_zh.ilike.%${query}%,name_en.ilike.%${query}%,summary_zh.ilike.%${query}%,description_zh.ilike.%${query}%`)
-      .order('rating_avg', { ascending: false })
-      .limit(50);
-    
-    tools = data || [];
-  }
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -65,12 +107,25 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                     搜索结果："{query}"
                   </h1>
                   <p className="text-sm text-text-secondary mt-1">
-                    找到 {tools.length} 个相关工具
+                    找到 {totalCount} 个相关工具
                   </p>
                 </div>
 
-                {tools.length > 0 ? (
-                  <ToolGrid tools={tools} columns={5} />
+                {loading ? (
+                  <div className="text-center py-12">
+                    <p className="text-text-secondary">加载中...</p>
+                  </div>
+                ) : tools.length > 0 ? (
+                  <>
+                    <ToolGrid tools={tools} columns={5} />
+                    
+                    {/* 分页组件 */}
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={handlePageChange}
+                    />
+                  </>
                 ) : (
                   <div className="text-center py-12">
                     <p className="text-text-secondary mb-4">

@@ -29,6 +29,14 @@ const nextConfig = {
         protocol: 'https',
         hostname: '**.cloudflare.com',
       },
+      {
+        protocol: 'https',
+        hostname: '**.r2.dev',
+      },
+      {
+        protocol: 'https',
+        hostname: 'aitools-web.r2.dev',
+      },
     ],
   },
 

@@ -37,6 +37,7 @@ export interface Tool {
   source: string;
   crawler_site: string | null;
   view_count: number;
+  published_at: string | null;
   seo_title: string | null;
   seo_description: string | null;
   seo_keywords: string | null;
@@ -258,11 +259,15 @@ export interface ToolWithCategory extends Tool {
 }
 
 export interface ToolWithTags extends Tool {
-  tag_list: Tag[];
+  tool_tags: Array<{
+    tags: Tag;
+  }>;
 }
 
 export interface ToolWithRelations extends Tool {
   category: Category | null;
-  tag_list: Tag[];
+  tool_tags: Array<{
+    tags: Tag;
+  }>;
 }
 
