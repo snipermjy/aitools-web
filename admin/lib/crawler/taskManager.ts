@@ -614,6 +614,58 @@ class TaskManager {
   }
 
   /**
+   * 构建分页URL（智能识别常见分页模式）
+   */
+  private buildPaginatedUrl(baseUrl: string, page: number): string {
+    try {
+      const url = new URL(baseUrl);
+      
+      // 常见分页模式检测
+      const pathname = url.pathname;
+      const searchParams = url.searchParams;
+      
+      // 模式1: 已有 ?page= 参数
+      if (searchParams.has('page')) {
+        searchParams.set('page', page.toString());
+        return url.toString();
+      }
+      
+      // 模式2: 已有 ?p= 参数
+      if (searchParams.has('p')) {
+        searchParams.set('p', page.toString());
+        return url.toString();
+      }
+      
+      // 模式3: 路径末尾是 /page/数字
+      if (/\/page\/\d+\/?$/.test(pathname)) {
+        url.pathname = pathname.replace(/\/page\/\d+\/?$/, `/page/${page}`);
+        return url.toString();
+      }
+      
+      // 模式4: 路径末尾是 /数字
+      if (/\/\d+\/?$/.test(pathname)) {
+        url.pathname = pathname.replace(/\/\d+\/?$/, `/${page}`);
+        return url.toString();
+      }
+      
+      // 模式5: toolify.ai 特殊处理（使用 ?page= 参数）
+      if (url.hostname.includes('toolify.ai')) {
+        searchParams.set('page', page.toString());
+        return url.toString();
+      }
+      
+      // 默认：添加 ?page= 参数
+      searchParams.set('page', page.toString());
+      return url.toString();
+    } catch (error) {
+      console.error('构建分页URL失败:', error);
+      // 降级：简单拼接
+      const separator = baseUrl.includes('?') ? '&' : '?';
+      return `${baseUrl}${separator}page=${page}`;
+    }
+  }
+
+  /**
    * 从导航站提取链接
    */
   private async extractLinksFromNavigation(
@@ -628,28 +680,62 @@ class TaskManager {
     this.currentStep = `🌐 开始分析导航站，最多爬取 ${maxPages} 页`;
 
     const allUrls: string[] = [];
+    let consecutiveEmptyPages = 0; // 连续空页计数
+    const maxConsecutiveEmpty = 2; // 最多允许2次连续空页
 
     try {
       for (let page = 1; page <= maxPages; page++) {
         this.addLog(`📄 正在爬取第 ${page}/${maxPages} 页...`);
         
+        // 构建分页URL
+        const pageUrl = page === 1 ? navigationUrl : this.buildPaginatedUrl(navigationUrl, page);
+        
         // 更新进度
         this.currentStep = `📄 正在爬取第 ${page}/${maxPages} 页，正在加载页面...`;
-        this.addLog(`   - 正在加载页面...`);
+        this.addLog(`   - URL: ${pageUrl}`);
 
-        // TODO: 这里需要实现分页逻辑
-        // 目前先简单处理，只爬取第一页
-        const pageUrls = await scrapeToolDomains(navigationUrl);
+        // 爬取当前页
+        const pageUrls = await scrapeToolDomains(pageUrl);
 
         if (pageUrls.length === 0) {
-          this.addLog(`⚠️ 第 ${page} 页没有找到链接，停止爬取`);
-          this.currentStep = `⚠️ 第 ${page} 页没有找到链接，停止爬取`;
-          await this.sleep(1000);
-          break;
+          consecutiveEmptyPages++;
+          this.addLog(`⚠️ 第 ${page} 页没有找到链接（连续空页: ${consecutiveEmptyPages}/${maxConsecutiveEmpty}）`);
+          
+          // 如果连续多页为空，可能已经到底了
+          if (consecutiveEmptyPages >= maxConsecutiveEmpty) {
+            this.addLog(`🛑 连续 ${maxConsecutiveEmpty} 页为空，停止爬取`);
+            this.currentStep = `🛑 连续 ${maxConsecutiveEmpty} 页为空，停止爬取`;
+            await this.sleep(1000);
+            break;
+          }
+          
+          // 继续尝试下一页
+          this.currentStep = `⚠️ 第 ${page} 页为空，继续尝试下一页...`;
+          await this.sleep(2000);
+          continue;
+        }
+
+        // 重置连续空页计数
+        consecutiveEmptyPages = 0;
+        
+        // 检查是否与上一页完全重复（说明分页无效）
+        const currentPageUrls = new Set(pageUrls);
+        if (page > 1 && allUrls.length > 0) {
+          const previousUrls = new Set(allUrls.slice(-pageUrls.length));
+          const intersection = new Set([...currentPageUrls].filter(x => previousUrls.has(x)));
+          const duplicateRate = intersection.size / currentPageUrls.size;
+          
+          if (duplicateRate > 0.9) { // 超过90%重复
+            this.addLog(`⚠️ 第 ${page} 页与前一页重复率 ${(duplicateRate * 100).toFixed(0)}%，可能分页无效`);
+            this.addLog(`💡 建议：尝试手动添加分页参数，或选择其他导航站`);
+            this.currentStep = `⚠️ 分页可能无效（重复率过高），停止爬取`;
+            await this.sleep(1000);
+            break;
+          }
         }
 
         allUrls.push(...pageUrls);
-        this.addLog(`✅ 第 ${page} 页找到 ${pageUrls.length} 个链接`);
+        this.addLog(`✅ 第 ${page} 页找到 ${pageUrls.length} 个链接（新增 ${currentPageUrls.size} 个）`);
         
         // 更新进度
         this.currentStep = `✅ 第 ${page}/${maxPages} 页爬取完成，找到 ${pageUrls.length} 个链接 (累计: ${allUrls.length})`;
