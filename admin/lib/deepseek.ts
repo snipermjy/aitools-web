@@ -172,18 +172,9 @@ ${categoryList}
   } catch (error: any) {
     console.error('DeepSeek AI 分析失败:', error);
     
-    // AI失败时，使用第一个可用分类作为默认值（复用之前查询的分类数据）
-    const defaultCategoryName = categories?.[0]?.name_zh || 'AI写作工具';
-    
-    // 返回默认结果
-    return {
-      name_zh: new URL(websiteUrl).hostname.replace('www.', ''),
-      summary_zh: '待完善描述',
-      description_zh: '此工具信息由AI分析失败，需要手动补充。',
-      categories: [defaultCategoryName],
-      tags: [],
-      pricing_type: 'freemium',
-    };
+    // AI 分析失败时，直接抛出错误，不保存工具
+    // 这样可以确保所有工具都有完整的 AI 分析结果
+    throw new Error(`AI 分析失败: ${error.message || '未知错误'}`);
   }
 }
 

@@ -23,7 +23,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { ToolGrid, Pagination } from '@/components';
+import { ToolGrid, ToolGridSkeleton, Pagination, Breadcrumb } from '@/components';
 import { FeaturedTagsConfig } from '@/lib/featuredTags';
 
 const ITEMS_PER_PAGE = 24;
@@ -93,17 +93,27 @@ export default function CategoryClient({
 
   return (
     <>
+      {/* 面包屑导航 */}
+      <div className="px-4 lg:px-8 pt-4 lg:pt-8 pb-2">
+        <Breadcrumb 
+          items={[
+            { label: '首页', href: '/' },
+            { label: initialCategory.name_zh }
+          ]}
+        />
+      </div>
+
       {/* 分类头部 */}
-      <div className="px-8 mb-8">
-        <div className="bg-white rounded-lg shadow-card p-6">
+      <div className="px-4 lg:px-8 mb-4 lg:mb-8">
+        <div className="bg-white rounded-lg shadow-card p-4 lg:p-6">
           <div className="flex items-center gap-4 mb-3">
             <span className="text-4xl">{initialCategory.icon || '📁'}</span>
             <div>
-              <h1 className="text-2xl font-bold text-text-primary">
+              <h1 className="text-2xl md:text-3xl font-bold text-text-primary">
                 {initialCategory.name_zh}
               </h1>
               {initialCategory.description_zh && (
-                <p className="text-text-secondary mt-1">
+                <p className="text-sm md:text-base text-text-secondary mt-1">
                   {initialCategory.description_zh}
                 </p>
               )}
@@ -128,21 +138,19 @@ export default function CategoryClient({
       </div>
 
       {/* 工具列表 */}
-      <div className="px-8 mb-6">
-        <div className="bg-white rounded-lg shadow-card p-6">
+      <div className="px-4 lg:px-8 mb-4 lg:mb-6">
+        <div className="bg-white rounded-lg shadow-card p-4 lg:p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">
+            <h2 className="text-lg md:text-xl font-semibold">
               全部工具
             </h2>
-            <span className="text-sm text-text-secondary">
+            <span className="text-xs md:text-sm text-text-secondary">
               共 {totalCount} 个工具
             </span>
           </div>
 
           {loading ? (
-            <div className="text-center py-12">
-              <p className="text-text-secondary">加载中...</p>
-            </div>
+            <ToolGridSkeleton count={24} columns={6} />
           ) : tools.length > 0 ? (
             <>
               <ToolGrid tools={tools} columns={6} tagConfigs={tagConfigs} />

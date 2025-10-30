@@ -799,13 +799,12 @@ https://claude.ai`}
               <input
                 type="number"
                 value={maxPages}
-                onChange={(e) => setMaxPages(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                onChange={(e) => setMaxPages(Math.max(1, parseInt(e.target.value) || 1))}
                 min="1"
-                max="10"
                 className="input w-24"
                 disabled={loading || !!currentTask}
               />
-              <span className="text-sm text-text-secondary">（1-10页）</span>
+              <span className="text-sm text-text-secondary">（至少1页，无上限）</span>
             </div>
 
             <div className="flex items-center gap-4 mb-4">
@@ -814,14 +813,13 @@ https://claude.ai`}
                 type="number"
                 value={navigationLimit}
                 onChange={(e) =>
-                  setNavigationLimit(Math.max(1, Math.min(200, parseInt(e.target.value) || 1)))
+                  setNavigationLimit(Math.max(1, parseInt(e.target.value) || 1))
                 }
                 min="1"
-                max="200"
                 className="input w-24"
                 disabled={loading || !!currentTask}
               />
-              <span className="text-sm text-text-secondary">（1-200）</span>
+              <span className="text-sm text-text-secondary">（至少1个，无上限）</span>
             </div>
 
             <button
@@ -839,7 +837,10 @@ https://claude.ai`}
               • 系统会自动检测分页并提取工具链接
             <br />
               • 自动去重和过滤已存在的工具
-              <br />• 建议先设置较小的页数和数量测试
+            <br />
+              • 页数和数量无上限，请根据实际需求设置
+            <br />
+              • AI 分析失败的工具将不会保存，确保数据质量
           </p>
         </div>
         )}

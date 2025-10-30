@@ -62,12 +62,14 @@ const config: Config = {
         ],
       },
       fontSize: {
-        'xs': '0.625rem',    // 10px
-        'sm': '0.75rem',     // 12px
-        'base': '0.875rem',  // 14px
-        'lg': '1.125rem',    // 18px
-        'xl': '1.5rem',      // 24px
-        '2xl': '2rem',       // 32px
+        'xs': '0.75rem',     // 12px - 标签、辅助信息
+        'sm': '0.875rem',    // 14px - 小字、次要内容
+        'base': '1rem',      // 16px - 标准正文 ⭐
+        'lg': '1.125rem',    // 18px - 强调文本
+        'xl': '1.25rem',     // 20px - 小标题
+        '2xl': '1.5rem',     // 24px - 中标题
+        '3xl': '1.875rem',   // 30px - 大标题
+        '4xl': '2.25rem',    // 36px - 超大标题
       },
       boxShadow: {
         'card': '0 1px 3px rgba(0, 0, 0, 0.08)',

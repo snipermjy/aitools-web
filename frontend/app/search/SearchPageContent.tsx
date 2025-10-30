@@ -14,7 +14,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Navbar, Sidebar, Footer, SearchBox, ToolGrid, Pagination, AdvancedSearchFilters } from '@/components';
+import { LayoutWithSidebar, SearchBox, ToolGrid, ToolGridSkeleton, Pagination, AdvancedSearchFilters } from '@/components';
 import type { SearchFilters } from '@/components/AdvancedSearchFilters';
 import { useFeaturedTags } from '@/lib/useFeaturedTags';
 
@@ -103,13 +103,8 @@ export default function SearchPageContent() {
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <Navbar />
-
-      <div className="flex flex-1 pt-16">
-        <Sidebar categories={categories || []} />
-
-        <main className="flex-1 ml-60 p-8">
+    <LayoutWithSidebar categories={categories}>
+      <div className="p-4 lg:p-8">
           <div className="max-w-7xl mx-auto">
             {/* 搜索框 */}
             <div className="mb-8">
@@ -131,18 +126,16 @@ export default function SearchPageContent() {
             {query ? (
               <div className="bg-white rounded-lg shadow-card p-6">
                 <div className="mb-4">
-                  <h1 className="text-xl font-semibold">
+                  <h1 className="text-lg md:text-xl font-semibold">
                     搜索结果：&quot;{query}&quot;
                   </h1>
-                  <p className="text-sm text-text-secondary mt-1">
+                  <p className="text-xs md:text-sm text-text-secondary mt-1">
                     找到 {totalCount} 个相关工具
                   </p>
                 </div>
 
                 {loading ? (
-                  <div className="text-center py-12">
-                    <p className="text-text-secondary">加载中...</p>
-                  </div>
+                  <ToolGridSkeleton count={24} columns={5} />
                 ) : tools.length > 0 ? (
                   <>
                     <ToolGrid tools={tools} columns={5} tagConfigs={tagConfigs} />
@@ -167,20 +160,17 @@ export default function SearchPageContent() {
               </div>
             ) : (
               <div className="bg-white rounded-lg shadow-card p-12 text-center">
-                <p className="text-text-secondary mb-2">
+                <p className="text-sm md:text-base text-text-secondary mb-2">
                   请输入关键词搜索
                 </p>
-                <p className="text-sm text-text-placeholder">
+                <p className="text-xs md:text-sm text-text-placeholder">
                   支持搜索工具名称、描述等
                 </p>
               </div>
             )}
-          </div>
-        </main>
+        </div>
       </div>
-
-      <Footer />
-    </div>
+    </LayoutWithSidebar>
   );
 }
 

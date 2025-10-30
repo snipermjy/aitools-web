@@ -12,7 +12,7 @@
  */
 
 import { supabase } from '@/lib/supabase';
-import { Navbar, Sidebar, Footer } from '@/components';
+import { LayoutWithSidebar } from '@/components';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import { getSiteConfig } from '@/lib/config';
@@ -156,26 +156,16 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
         .range((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE - 1);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <Navbar />
-
-      <div className="flex flex-1 pt-16">
-        <Sidebar categories={categories || []} />
-
-        <main className="flex-1 ml-60">
-          <CategoryClient
-            slug={params.slug}
-            initialCategory={category}
-            initialSubCategories={subCategories || []}
-            initialTools={tools || []}
-            initialTotalCount={count || 0}
-            initialPage={currentPage}
-            tagConfigs={tagConfigs}
-          />
-        </main>
-      </div>
-
-      <Footer />
-    </div>
+    <LayoutWithSidebar categories={categories || []}>
+      <CategoryClient
+        slug={params.slug}
+        initialCategory={category}
+        initialSubCategories={subCategories || []}
+        initialTools={tools || []}
+        initialTotalCount={count || 0}
+        initialPage={currentPage}
+        tagConfigs={tagConfigs}
+      />
+    </LayoutWithSidebar>
   );
 }

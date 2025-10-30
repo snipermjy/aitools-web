@@ -114,7 +114,7 @@ export default function ToolCard({ tool, compact = true, tagConfigs }: ToolCardP
           <div className="flex-1 flex flex-col justify-between min-w-0 h-10">
             {/* 第一行：工具名称 + 评分 */}
             <div className="flex items-center justify-between gap-2">
-              <h3 className="text-[13px] font-semibold text-text-primary line-clamp-1 leading-tight flex-1">
+              <h3 className="text-sm font-semibold text-text-primary line-clamp-1 leading-tight flex-1">
                 {tool.name_zh}
               </h3>
               {/* 评分 */}
@@ -123,7 +123,7 @@ export default function ToolCard({ tool, compact = true, tagConfigs }: ToolCardP
                   <div className="flex items-center gap-0.5">
                     {renderStars(tool.rating_avg)}
                   </div>
-                  <span className="text-[10px] text-text-secondary whitespace-nowrap">
+                  <span className="text-xs text-text-secondary whitespace-nowrap">
                     {formatRating(tool.rating_avg)} ({tool.rating_count})
                   </span>
                 </div>
@@ -136,7 +136,7 @@ export default function ToolCard({ tool, compact = true, tagConfigs }: ToolCardP
                 {aiTags.map((tag, index) => (
                   <span
                     key={index}
-                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 whitespace-nowrap flex-shrink-0"
+                    className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 whitespace-nowrap flex-shrink-0"
                   >
                     {tag}
                   </span>
@@ -145,7 +145,7 @@ export default function ToolCard({ tool, compact = true, tagConfigs }: ToolCardP
             ) : (
               <div className="flex items-center gap-1">
                 {tool.require_login === false && (
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-700 whitespace-nowrap">
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-50 text-gray-700 whitespace-nowrap">
                     无需登录
                   </span>
                 )}
@@ -155,7 +155,7 @@ export default function ToolCard({ tool, compact = true, tagConfigs }: ToolCardP
         </div>
 
         {/* 简介 */}
-        <p className="text-[12px] text-text-secondary line-clamp-2 flex-1 leading-relaxed">
+        <p className="text-sm text-text-secondary line-clamp-2 flex-1 leading-relaxed">
           {tool.summary_zh || tool.description_zh || '暂无描述'}
         </p>
       </div>

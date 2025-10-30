@@ -289,7 +289,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
                 {/* 第一行：标题 + 标签 + 按钮 */}
                 <div className="flex items-center gap-3 flex-wrap mb-3">
                   {/* 标题 */}
-                  <h1 className="text-xl font-bold text-text-primary">
+                  <h1 className="text-xl md:text-2xl font-bold text-text-primary">
                     {toolWithTags.name_zh}
                   </h1>
 
@@ -328,7 +328,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
                 </div>
 
                 {/* 第二行：简介 */}
-                <p className="text-base text-text-secondary leading-relaxed">
+                <p className="text-sm md:text-base text-text-secondary leading-relaxed">
                   {toolWithTags.summary_zh || toolWithTags.description_zh}
                 </p>
               </div>
@@ -342,7 +342,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
               {/* 网站预览（截图） */}
               {toolWithTags.screenshot_url && getR2Url(toolWithTags.screenshot_url) ? (
                 <div className="bg-white rounded-lg shadow-card p-5">
-                  <h2 className="text-lg font-semibold mb-3">网站预览</h2>
+                  <h2 className="text-base md:text-lg font-semibold mb-3">网站预览</h2>
                   <div className="rounded-lg overflow-hidden border border-border">
                     <Image
                       src={getR2Url(toolWithTags.screenshot_url)!}
@@ -375,8 +375,8 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
               {/* 完整描述 */}
               {toolWithTags.description_zh && (
                 <div className="bg-white rounded-lg shadow-card p-5">
-                  <h2 className="text-lg font-semibold mb-3">详细介绍</h2>
-                  <div className="prose max-w-none text-text-secondary text-base leading-relaxed">
+                  <h2 className="text-base md:text-lg font-semibold mb-3">详细介绍</h2>
+                  <div className="prose max-w-none text-text-secondary text-sm md:text-base leading-relaxed">
                     {toolWithTags.description_zh}
                   </div>
                 </div>
@@ -385,7 +385,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
               {/* 适用场景 */}
               {toolWithTags.use_cases && (
                 <div className="bg-white rounded-lg shadow-card p-5">
-                  <h2 className="text-lg font-semibold mb-3">适用场景</h2>
+                  <h2 className="text-base md:text-lg font-semibold mb-3">适用场景</h2>
                   <ul className="space-y-3">
                     {(() => {
                       // 智能分段：按句号、换行符分割
@@ -402,7 +402,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
                         return (
                           <li key={index} className="flex items-start gap-2">
                             <SparklesIcon className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" />
-                            <span className="text-base text-text-secondary flex-1">
+                            <span className="text-sm md:text-base text-text-secondary flex-1">
                               {hasColon ? (
                                 <>
                                   <strong className="text-text-primary">
@@ -427,7 +427,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
 
               {/* 评论列表 */}
               <div className="bg-white rounded-lg shadow-card p-5">
-                <h2 className="text-lg font-semibold mb-3">
+                <h2 className="text-base md:text-lg font-semibold mb-3">
                   用户评论 ({comments?.length || 0})
                 </h2>
                 
@@ -457,7 +457,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
             <div className="space-y-4">
               {/* 用户评分 */}
               <div className="bg-white rounded-lg shadow-card p-4">
-                <h3 className="font-semibold text-lg mb-3">
+                <h3 className="font-semibold text-base md:text-lg mb-3">
                   用户评分：{toolWithTags.rating_avg.toFixed(1)}
                 </h3>
                 <RatingStars
@@ -469,8 +469,8 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
 
               {/* 基本信息 */}
               <div className="bg-white rounded-lg shadow-card p-4">
-                <h3 className="font-semibold text-lg mb-3">基本信息</h3>
-                <div className="space-y-3 text-base">
+                <h3 className="font-semibold text-base md:text-lg mb-3">基本信息</h3>
+                <div className="space-y-3 text-sm md:text-base">
                   {toolWithTags.category && (
                     <div>
                       <span className="text-text-secondary">分类：</span>
@@ -497,7 +497,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
               {/* 主要功能 */}
               {toolWithTags.features && toolWithTags.features.length > 0 && (
                 <div className="bg-white rounded-lg shadow-card p-4">
-                  <h3 className="font-semibold text-lg mb-3">主要功能</h3>
+                  <h3 className="font-semibold text-base md:text-lg mb-3">主要功能</h3>
                   <ul className="space-y-2">
                     {toolWithTags.features.map((feature: string, index: number) => {
                       // 检查是否有冒号，如果有则分割成标题和描述
@@ -529,7 +529,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
               {/* 标签 */}
               {toolWithTags.tool_tags && toolWithTags.tool_tags.length > 0 && (
                 <div className="bg-white rounded-lg shadow-card p-4">
-                  <h3 className="font-semibold text-lg mb-3">相关标签</h3>
+                  <h3 className="font-semibold text-base md:text-lg mb-3">相关标签</h3>
                   <div className="flex flex-wrap gap-2">
                     {toolWithTags.tool_tags.map((tt: any) => (
                       <span
@@ -546,7 +546,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
               {/* 相关推荐 */}
               {relatedTools && relatedTools.length > 0 && (
                 <div className="bg-white rounded-lg shadow-card p-4">
-                  <h3 className="font-semibold text-lg mb-3">相关工具</h3>
+                  <h3 className="font-semibold text-base md:text-lg mb-3">相关工具</h3>
                   <div className="space-y-3">
                     {relatedTools.map((relatedTool) => (
                       <a
@@ -571,7 +571,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium text-base truncate">
+                          <div className="font-medium text-sm md:text-base truncate">
                             {relatedTool.name_zh}
                           </div>
                         </div>

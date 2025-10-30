@@ -12,9 +12,7 @@
 
 import { supabase } from '@/lib/supabase';
 import { 
-  Navbar, 
-  Sidebar, 
-  Footer, 
+  LayoutWithSidebar,
   SearchBox, 
   ContentCarousel,
   ToolGrid,
@@ -238,38 +236,29 @@ export default async function HomePage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <>
       {/* WebSite结构化数据 - 用于SEO和搜索框功能 */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
       />
       
-      {/* 顶部导航栏 */}
-      <Navbar />
-
-      {/* 主体内容 */}
-      <div className="flex flex-1 pt-16">
-        {/* 左侧分类导航 */}
-        <Sidebar categories={categories || []} />
-
-        {/* 右侧主内容区 */}
-        <main className="flex-1 ml-60">
+      <LayoutWithSidebar categories={categories || []}>
           {/* 顶部通栏广告 */}
-          <div className="px-8 pt-8">
+          <div className="px-4 lg:px-8 pt-4 lg:pt-8">
             <AdBanner position="top_banner" />
           </div>
 
           {/* 搜索区域 */}
-          <div className="px-8 py-6">
+          <div className="px-4 lg:px-8 py-4 lg:py-6">
             <div className="max-w-2xl mx-auto">
               <SearchBox placeholder="搜索AI工具..." />
             </div>
           </div>
 
           {/* 内容轮播区（AI快讯/教程/百科） */}
-          <div className="px-8 mb-6">
-            <div className="bg-white rounded-lg shadow-card p-6">
+          <div className="px-4 lg:px-8 mb-4 lg:mb-6">
+            <div className="bg-white rounded-lg shadow-card p-4 lg:p-6">
               <ContentCarousel 
                 newsItems={news || []}
                 tutorialItems={tutorials || []}
@@ -280,11 +269,11 @@ export default async function HomePage() {
 
           {/* 推荐专区 */}
           {featuredToolsList.length > 0 && (
-            <div className="px-8 mb-6">
-              <div className="bg-white rounded-lg shadow-card p-6">
+            <div className="px-4 lg:px-8 mb-4 lg:mb-6">
+              <div className="bg-white rounded-lg shadow-card p-4 lg:p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold">🌟 推荐专区</h2>
-                  <span className="text-sm text-text-secondary">
+                  <h2 className="text-lg md:text-xl font-semibold">🌟 推荐专区</h2>
+                  <span className="text-xs md:text-sm text-text-secondary">
                     精选优质工具
                   </span>
                 </div>
@@ -294,7 +283,7 @@ export default async function HomePage() {
           )}
 
           {/* 腰部通栏广告 */}
-          <div className="px-8 mb-6">
+          <div className="px-4 lg:px-8 mb-4 lg:mb-6">
             <AdBanner position="middle_banner" />
           </div>
 
@@ -307,10 +296,10 @@ export default async function HomePage() {
             const isNew = latestTime && (Date.now() - new Date(latestTime).getTime()) < 24 * 60 * 60 * 1000;
             
             return (
-              <div key={category.id} className="px-8 mb-6">
-                <div className="bg-white rounded-lg shadow-card p-6">
+              <div key={category.id} className="px-4 lg:px-8 mb-4 lg:mb-6">
+                <div className="bg-white rounded-lg shadow-card p-4 lg:p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold flex items-center gap-2">
+                    <h2 className="text-lg md:text-xl font-semibold flex items-center gap-2">
                       <span>{category.icon}</span>
                       <span>{category.name_zh}</span>
                       {isNew && (
@@ -337,13 +326,9 @@ export default async function HomePage() {
             );
           })}
 
-          <div className="h-8" />
-        </main>
-      </div>
-
-      {/* 底部信息栏 */}
-      <Footer />
-    </div>
+        <div className="h-8" />
+      </LayoutWithSidebar>
+    </>
   );
 }
 
