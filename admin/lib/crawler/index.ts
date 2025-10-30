@@ -38,6 +38,181 @@ async function deleteR2Files(paths: string[]): Promise<void> {
 }
 
 /**
+ * 判断失败类型（永久失败 or 临时失败）
+ */
+export function classifyFailureType(error: string): 'permanent' | 'temporary' {
+  const errorLower = error.toLowerCase();
+  
+  // 永久失败关键词（这些错误会计入黑名单）
+  const permanentKeywords = [
+    'ai 分析失败',
+    'ai分析失败',
+    '404',
+    '403',
+    '410',
+    'not found',
+    'forbidden',
+    'dns',
+    'dns解析失败',
+    '内容提取失败',
+    '无法访问',
+    '域名已过期',
+    '非工具类网站',
+  ];
+  
+  // 临时失败关键词（这些错误不计入黑名单）
+  const temporaryKeywords = [
+    'timeout',
+    '超时',
+    '500',
+    '502',
+    '503',
+    'server error',
+    '截图失败',
+    'upload failed',
+    '上传失败',
+    'econnrefused',
+    'enotfound',
+  ];
+  
+  // 优先匹配永久失败
+  for (const keyword of permanentKeywords) {
+    if (errorLower.includes(keyword)) {
+      return 'permanent';
+    }
+  }
+  
+  // 匹配临时失败
+  for (const keyword of temporaryKeywords) {
+    if (errorLower.includes(keyword)) {
+      return 'temporary';
+    }
+  }
+  
+  // 默认为永久失败（保守策略，避免重复尝试无效工具）
+  return 'permanent';
+}
+
+/**
+ * 记录爬取失败到黑名单
+ */
+export async function recordFailureToBlacklist(
+  domain: string,
+  error: string,
+  failureType: 'permanent' | 'temporary'
+): Promise<void> {
+  try {
+    // 只记录永久失败
+    if (failureType !== 'permanent') {
+      return;
+    }
+
+    // 检查是否已存在
+    const { data: existing } = await supabase
+      .from('crawler_blacklist')
+      .select('*')
+      .eq('domain', domain)
+      .single();
+
+    if (existing) {
+      // 更新失败次数和信息
+      const newFailureCount = existing.failure_count + 1;
+      const isBlacklisted = newFailureCount >= 3; // 失败3次加入黑名单
+
+      await supabase
+        .from('crawler_blacklist')
+        .update({
+          failure_count: newFailureCount,
+          last_failure_reason: error,
+          last_failure_type: failureType,
+          last_failed_at: new Date().toISOString(),
+          is_blacklisted: isBlacklisted,
+          blacklisted_at: isBlacklisted && !existing.is_blacklisted 
+            ? new Date().toISOString() 
+            : existing.blacklisted_at,
+        })
+        .eq('domain', domain);
+
+      console.log(`📝 更新黑名单记录: ${domain} (失败 ${newFailureCount} 次${isBlacklisted ? '，已加入黑名单' : ''})`);
+    } else {
+      // 首次失败，创建记录
+      await supabase
+        .from('crawler_blacklist')
+        .insert({
+          domain,
+          failure_count: 1,
+          last_failure_reason: error,
+          last_failure_type: failureType,
+          first_failed_at: new Date().toISOString(),
+          last_failed_at: new Date().toISOString(),
+          is_blacklisted: false, // 首次失败不加入黑名单
+        });
+
+      console.log(`📝 新增黑名单记录: ${domain} (失败 1 次)`);
+    }
+  } catch (error: any) {
+    console.error('⚠️ 记录黑名单失败:', error);
+    // 黑名单记录失败不影响主流程
+  }
+}
+
+/**
+ * 批量预检查 URLs（检测重复和黑名单）
+ */
+export async function preCheckUrls(urls: string[]): Promise<{
+  total: number;
+  newUrls: string[];
+  duplicateUrls: string[];
+  blacklistedUrls: string[];
+  duplicateCount: number;
+  blacklistedCount: number;
+}> {
+  const domains = urls.map(url => normalizeDomain(url));
+  
+  // 批量检查已存在的工具
+  const { data: existingTools } = await supabase
+    .from('tools')
+    .select('domain')
+    .in('domain', domains);
+  
+  const existingDomains = new Set(existingTools?.map(t => t.domain) || []);
+  
+  // 批量检查黑名单
+  const { data: blacklisted } = await supabase
+    .from('crawler_blacklist')
+    .select('domain')
+    .in('domain', domains)
+    .eq('is_blacklisted', true);
+  
+  const blacklistedDomains = new Set(blacklisted?.map(b => b.domain) || []);
+  
+  // 分类 URLs
+  const newUrls: string[] = [];
+  const duplicateUrls: string[] = [];
+  const blacklistedUrls: string[] = [];
+  
+  for (const url of urls) {
+    const domain = normalizeDomain(url);
+    if (blacklistedDomains.has(domain)) {
+      blacklistedUrls.push(url);
+    } else if (existingDomains.has(domain)) {
+      duplicateUrls.push(url);
+    } else {
+      newUrls.push(url);
+    }
+  }
+  
+  return {
+    total: urls.length,
+    newUrls,
+    duplicateUrls,
+    blacklistedUrls,
+    duplicateCount: duplicateUrls.length,
+    blacklistedCount: blacklistedUrls.length,
+  };
+}
+
+/**
  * 爬虫结果接口
  */
 export interface CrawlerResult {
@@ -45,6 +220,8 @@ export interface CrawlerResult {
   toolId?: string;
   domain: string;
   error?: string;
+  skipped?: boolean; // 是否被跳过
+  skipReason?: 'duplicate' | 'blacklisted'; // 跳过原因
 }
 
 /**
@@ -399,6 +576,11 @@ export async function crawlSingleTool(
   } catch (error: any) {
     console.error(`❌ 爬取失败: ${url}`, error);
     onProgress?.('error', `❌ 爬取失败: ${error.message}`);
+    
+    // 判断失败类型并记录到黑名单
+    const failureType = classifyFailureType(error.message);
+    await recordFailureToBlacklist(domain, error.message, failureType);
+    
     return {
       success: false,
       domain,

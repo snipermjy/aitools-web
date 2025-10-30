@@ -41,6 +41,7 @@ interface Task {
   success: number;
   failed: number;
   skipped: number;
+  blacklisted: number; // 黑名单工具数量
   created_at: string;
   started_at?: string;
   completed_at?: string;
@@ -96,6 +97,9 @@ export default function CrawlerPage() {
   const [detailTask, setDetailTask] = useState<Task | null>(null);
   const [detailLogs, setDetailLogs] = useState<TaskLog[]>([]);
   const [retryingLogId, setRetryingLogId] = useState<string | null>(null); // 正在重试的日志ID
+
+  // 黑名单 Modal
+  const [showBlacklistModal, setShowBlacklistModal] = useState(false);
 
   // 终端日志容器引用（用于自动滚动）
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -518,9 +522,17 @@ export default function CrawlerPage() {
       `}</style>
 
       <div>
-        <h1 className="text-2xl font-bold text-text-primary mb-6">
-          爬虫管理
-        </h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-text-primary">
+            爬虫管理
+          </h1>
+          <button
+            onClick={() => setShowBlacklistModal(true)}
+            className="btn bg-gray-600 hover:bg-gray-700 text-white"
+          >
+            🚫 黑名单管理
+          </button>
+        </div>
 
         {/* Tabs */}
         <div className="flex gap-2 mb-6">
@@ -602,7 +614,7 @@ export default function CrawlerPage() {
                   进度：{currentTask.current}/{currentTask.total} ({currentTask.progress || 0}%)
                 </span>
                 <span className="text-blue-700">
-                  ✅ {currentTask.success} | ❌ {currentTask.failed} | ⏭️ {currentTask.skipped}
+                  ✅ {currentTask.success} | ❌ {currentTask.failed} | ⏭️ {currentTask.skipped} | 🚫 {currentTask.blacklisted || 0}
                 </span>
               </div>
               <div className="w-full bg-blue-200 rounded-full h-3">
@@ -916,6 +928,9 @@ https://claude.ai`}
                     </span>
                     <span className="text-warning">
                       跳过：<span className="font-medium">{task.skipped}</span>
+                    </span>
+                    <span className="text-gray-600">
+                      黑名单：<span className="font-medium">{task.blacklisted || 0}</span>
                           </span>
                   </div>
 
@@ -1076,7 +1091,294 @@ https://claude.ai`}
             </div>
           </div>
         )}
+
+        {/* 黑名单管理 Modal */}
+        {showBlacklistModal && (
+          <BlacklistModal onClose={() => setShowBlacklistModal(false)} />
+        )}
       </div>
     </AdminLayout>
+  );
+}
+
+/**
+ * 黑名单管理 Modal 组件
+ */
+interface BlacklistItem {
+  id: string;
+  domain: string;
+  failure_count: number;
+  last_failure_reason: string;
+  last_failure_type: string;
+  blacklisted_at: string;
+}
+
+function BlacklistModal({ onClose }: { onClose: () => void }) {
+  const [blacklist, setBlacklist] = useState<BlacklistItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDomains, setSelectedDomains] = useState<Set<string>>(new Set());
+  const [retrying, setRetrying] = useState(false);
+  const [removing, setRemoving] = useState(false);
+
+  // 加载黑名单
+  const loadBlacklist = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/crawler/blacklist');
+      const result = await response.json();
+
+      if (result.success) {
+        setBlacklist(result.data);
+      } else {
+        alert('加载黑名单失败：' + result.error);
+      }
+    } catch (error: any) {
+      console.error('加载黑名单失败:', error);
+      alert('加载黑名单失败：' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadBlacklist();
+  }, [loadBlacklist]);
+
+  // 全选/取消全选
+  const toggleSelectAll = () => {
+    if (selectedDomains.size === blacklist.length) {
+      setSelectedDomains(new Set());
+    } else {
+      setSelectedDomains(new Set(blacklist.map(item => item.domain)));
+    }
+  };
+
+  // 切换单个选择
+  const toggleSelect = (domain: string) => {
+    const newSelected = new Set(selectedDomains);
+    if (newSelected.has(domain)) {
+      newSelected.delete(domain);
+    } else {
+      newSelected.add(domain);
+    }
+    setSelectedDomains(newSelected);
+  };
+
+  // 批量重试
+  const handleBatchRetry = async () => {
+    if (selectedDomains.size === 0) {
+      alert('请先选择要重试的工具');
+      return;
+    }
+
+    if (!confirm(`确定要重试 ${selectedDomains.size} 个工具吗？\n\n这将创建一个新的爬取任务并自动启动。`)) {
+      return;
+    }
+
+    try {
+      setRetrying(true);
+      const response = await fetch('/api/crawler/blacklist/retry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          domains: Array.from(selectedDomains),
+          removeFromBlacklist: true,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert(`✅ 已创建重试任务！\n\n任务ID: ${result.taskId}\n\n请到任务列表查看进度。`);
+        // 重新加载黑名单
+        await loadBlacklist();
+        setSelectedDomains(new Set());
+        onClose();
+      } else {
+        alert('重试失败：' + result.error);
+      }
+    } catch (error: any) {
+      console.error('重试失败:', error);
+      alert('重试失败：' + error.message);
+    } finally {
+      setRetrying(false);
+    }
+  };
+
+  // 批量移除
+  const handleBatchRemove = async () => {
+    if (selectedDomains.size === 0) {
+      alert('请先选择要移除的工具');
+      return;
+    }
+
+    if (!confirm(`确定要移除 ${selectedDomains.size} 个工具吗？\n\n移除后，这些工具将在下次采集时重新尝试。`)) {
+      return;
+    }
+
+    try {
+      setRemoving(true);
+      const response = await fetch('/api/crawler/blacklist', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          domains: Array.from(selectedDomains),
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert('✅ 已移除 ' + selectedDomains.size + ' 个工具');
+        // 重新加载黑名单
+        await loadBlacklist();
+        setSelectedDomains(new Set());
+      } else {
+        alert('移除失败：' + result.error);
+      }
+    } catch (error: any) {
+      console.error('移除失败:', error);
+      alert('移除失败：' + error.message);
+    } finally {
+      setRemoving(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* 标题栏 */}
+        <div className="p-6 border-b flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold">🚫 黑名单管理</h2>
+            <p className="text-sm text-text-secondary mt-1">
+              共 {blacklist.length} 个黑名单工具（失败3次以上）
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-text-secondary hover:text-text-primary transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* 内容区域 */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="inline-block w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-text-secondary mt-4">加载中...</p>
+            </div>
+          ) : blacklist.length > 0 ? (
+            <div className="space-y-2">
+              {blacklist.map((item) => (
+                <div
+                  key={item.id}
+                  className={`border rounded-lg p-4 transition-colors ${
+                    selectedDomains.has(item.domain)
+                      ? 'border-primary bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedDomains.has(item.domain)}
+                      onChange={() => toggleSelect(item.domain)}
+                      className="mt-1 w-4 h-4 text-primary rounded focus:ring-2 focus:ring-primary"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-text-primary mb-1 break-all">
+                        {item.domain}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3 text-sm text-text-secondary">
+                        <span className="flex items-center gap-1">
+                          ❌ 失败 {item.failure_count} 次
+                        </span>
+                        <span className="flex items-center gap-1">
+                          🕐 {new Date(item.blacklisted_at).toLocaleString('zh-CN')}
+                        </span>
+                      </div>
+                      <div className="mt-2 text-xs text-error bg-red-50 px-2 py-1 rounded inline-block">
+                        {item.last_failure_reason}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4">🎉</div>
+              <p className="text-text-secondary">暂无黑名单工具</p>
+              <p className="text-sm text-text-placeholder mt-2">
+                所有工具都运行正常！
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* 底部操作栏 */}
+        {blacklist.length > 0 && (
+          <div className="p-6 border-t bg-gray-50 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedDomains.size === blacklist.length}
+                  onChange={toggleSelectAll}
+                  className="w-4 h-4 text-primary rounded focus:ring-2 focus:ring-primary"
+                />
+                <span className="text-sm font-medium">
+                  全选 ({selectedDomains.size}/{blacklist.length})
+                </span>
+              </label>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleBatchRetry}
+                disabled={selectedDomains.size === 0 || retrying}
+                className="btn btn-primary"
+              >
+                {retrying ? (
+                  <>
+                    <ArrowPathIcon className="w-4 h-4 mr-2 animate-spin" />
+                    重试中...
+                  </>
+                ) : (
+                  <>
+                    🔄 批量重试
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={handleBatchRemove}
+                disabled={selectedDomains.size === 0 || removing}
+                className="btn btn-error"
+              >
+                {removing ? (
+                  <>移除中...</>
+                ) : (
+                  <>🗑️ 批量移除</>
+                )}
+              </button>
+
+              <button onClick={onClose} className="btn btn-secondary">
+                关闭
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

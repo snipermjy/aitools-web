@@ -11,7 +11,7 @@
  */
 
 import { supabase } from '../supabase';
-import { crawlSingleTool } from './index';
+import { crawlSingleTool, preCheckUrls } from './index';
 import { scrapeToolDomains, normalizeDomain } from './scraper';
 
 // 任务状态类型
@@ -31,6 +31,7 @@ export interface CrawlerTask {
   success: number;
   failed: number;
   skipped: number;
+  blacklisted: number; // 黑名单工具数量
   created_at: string;
   started_at?: string;
   error_message?: string;
@@ -377,35 +378,50 @@ class TaskManager {
           .eq('id', taskId);
       }
 
-      // 去重检查
-      const existingDomains = await this.checkExistingTools(urls);
-      const newUrls = urls.filter(
-        (url: string) => !existingDomains.has(normalizeDomain(url))
-      );
+      // 预检查：同时检测重复和黑名单
+      this.addLog(`🔍 正在预检查 ${urls.length} 个链接（重复 + 黑名单）...`);
+      const preCheckResult = await preCheckUrls(urls);
+      
+      console.log(`✅ 预检查完成：`);
+      console.log(`   - 总计: ${preCheckResult.total}`);
+      console.log(`   - 新工具: ${preCheckResult.newUrls.length}`);
+      console.log(`   - 重复: ${preCheckResult.duplicateCount}`);
+      console.log(`   - 黑名单: ${preCheckResult.blacklistedCount}`);
+      
+      this.addLog(`✅ 预检查完成：新工具 ${preCheckResult.newUrls.length}，重复 ${preCheckResult.duplicateCount}，黑名单 ${preCheckResult.blacklistedCount}`);
 
-      console.log(`✅ 检测到 ${existingDomains.size} 个工具已存在，跳过`);
-      console.log(`🚀 准备爬取 ${newUrls.length} 个新工具`);
-
-      // 记录跳过的工具
-      const skippedCount = urls.length - newUrls.length;
-      for (const url of urls) {
-        const domain = normalizeDomain(url);
-        if (existingDomains.has(domain)) {
-          await this.saveLog(taskId, {
-            url,
-            domain,
-            status: 'skipped',
-            error_type: CrawlerErrorType.DUPLICATE,
-            error_message: '工具已存在',
-          });
-        }
+      // 记录跳过的重复工具
+      for (const url of preCheckResult.duplicateUrls) {
+        await this.saveLog(taskId, {
+          url,
+          domain: normalizeDomain(url),
+          status: 'skipped',
+          error_type: CrawlerErrorType.DUPLICATE,
+          error_message: '工具已存在',
+        });
       }
 
-      // 更新跳过数量
+      // 记录跳过的黑名单工具
+      for (const url of preCheckResult.blacklistedUrls) {
+        await this.saveLog(taskId, {
+          url,
+          domain: normalizeDomain(url),
+          status: 'skipped',
+          error_type: 'BLACKLISTED' as any,
+          error_message: '黑名单工具（失败3次以上）',
+        });
+      }
+
+      // 更新跳过数量和黑名单数量
       await supabase
         .from('crawler_tasks')
-        .update({ skipped: skippedCount })
+        .update({ 
+          skipped: preCheckResult.duplicateCount,
+          blacklisted: preCheckResult.blacklistedCount,
+        })
         .eq('id', taskId);
+
+      const newUrls = preCheckResult.newUrls;
 
       // 逐个爬取
       let current = task.current || 0;
@@ -586,7 +602,7 @@ class TaskManager {
         // 添加完成总结
         const finalTask = await this.getTask(taskId);
         if (finalTask) {
-          this.addLog(`🎉 任务完成！成功 ${finalTask.success || 0}，失败 ${finalTask.failed || 0}，跳过 ${finalTask.skipped || 0}`);
+          this.addLog(`🎉 任务完成！成功 ${finalTask.success || 0}，失败 ${finalTask.failed || 0}，跳过重复 ${finalTask.skipped || 0}，跳过黑名单 ${finalTask.blacklisted || 0}`);
         }
       }
     } catch (error: any) {
