@@ -14,7 +14,7 @@
  */
 
 // Google Analytics 配置
-export const GA_TRACKING_ID = process.env.NEXT_PUBLIC_GA_ID || '';
+export const GA_TRACKING_ID = process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID || '';
 
 // 检查是否启用 GA
 export const isGAEnabled = () => {

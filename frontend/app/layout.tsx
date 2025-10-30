@@ -13,6 +13,7 @@
  */
 
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import './globals.css';
 import GoogleAnalytics from '@/components/GoogleAnalytics';
 import { getSiteConfig, getSEOConfig, getFeaturesConfig } from '@/lib/config';
@@ -100,7 +101,11 @@ export default async function RootLayout({
         )}
       </head>
       <body className="antialiased">
-        {featuresConfig.enable_google_analytics && <GoogleAnalytics />}
+        {featuresConfig.enable_google_analytics && (
+          <Suspense fallback={null}>
+            <GoogleAnalytics />
+          </Suspense>
+        )}
         {children}
       </body>
     </html>
