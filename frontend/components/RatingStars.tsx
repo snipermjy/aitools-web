@@ -44,11 +44,6 @@ export default function RatingStars({
   const [error, setError] = useState<string | null>(null);
   const [checkingStatus, setCheckingStatus] = useState(true);
 
-  // 组件挂载时检查用户是否已评分
-  useEffect(() => {
-    checkRatingStatus();
-  }, [toolSlug]);
-
   // 检查评分状态
   const checkRatingStatus = async () => {
     try {
@@ -66,6 +61,12 @@ export default function RatingStars({
       setCheckingStatus(false);
     }
   };
+
+  // 组件挂载时检查用户是否已评分
+  useEffect(() => {
+    checkRatingStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toolSlug]);
 
   // 提交评分
   const submitRating = async (rating: number) => {

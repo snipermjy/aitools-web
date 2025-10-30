@@ -50,13 +50,13 @@ export default function ContentCarousel({
   
   const tabs = allTabs.filter(tab => tab.items.length > 0);
   
+  // 默认激活第一个有内容的标签页（Hooks必须在条件判断之前调用）
+  const [activeTab, setActiveTab] = useState<ContentType>(tabs.length > 0 ? tabs[0].key : 'news');
+  
   // 如果没有任何内容，不显示组件
   if (tabs.length === 0) {
     return null;
   }
-  
-  // 默认激活第一个有内容的标签页
-  const [activeTab, setActiveTab] = useState<ContentType>(tabs[0].key);
 
   const currentTab = tabs.find(t => t.key === activeTab);
   const currentItems = currentTab?.items || [];

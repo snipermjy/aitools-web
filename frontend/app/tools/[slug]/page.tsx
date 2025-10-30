@@ -391,10 +391,10 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
                       // 智能分段：按句号、换行符分割
                       const segments = toolWithTags.use_cases
                         .split(/[。\n]+/)
-                        .map(s => s.trim())
-                        .filter(s => s.length > 0);
+                        .map((s: string) => s.trim())
+                        .filter((s: string) => s.length > 0);
                       
-                      return segments.map((segment, index) => {
+                      return segments.map((segment: string, index: number) => {
                         // 检查是否有冒号，如果有则分割成标题和描述
                         const colonIndex = segment.indexOf('：') !== -1 ? segment.indexOf('：') : segment.indexOf(':');
                         const hasColon = colonIndex !== -1;
@@ -499,7 +499,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
                 <div className="bg-white rounded-lg shadow-card p-4">
                   <h3 className="font-semibold text-lg mb-3">主要功能</h3>
                   <ul className="space-y-2">
-                    {toolWithTags.features.map((feature, index) => {
+                    {toolWithTags.features.map((feature: string, index: number) => {
                       // 检查是否有冒号，如果有则分割成标题和描述
                       const colonIndex = feature.indexOf('：') !== -1 ? feature.indexOf('：') : feature.indexOf(':');
                       const hasColon = colonIndex !== -1;
