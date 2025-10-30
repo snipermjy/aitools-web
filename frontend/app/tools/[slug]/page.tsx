@@ -25,14 +25,33 @@ interface ToolDetailPageProps {
   };
 }
 
-// 生成元数据
 // 缓存策略：开发环境不缓存，生产环境 60 秒重新验证
 export const revalidate = process.env.NODE_ENV === 'development' ? 0 : 60;
+
+// 预生成热门工具页面（用于SEO优化）
+export async function generateStaticParams() {
+  // 获取前100个热门工具用于静态生成
+  const { data: tools } = await supabase
+    .from('tools')
+    .select('slug')
+    .eq('status', 'published')
+    .order('rating_avg', { ascending: false })
+    .limit(100);
+
+  return (tools || []).map((tool) => ({
+    slug: tool.slug,
+  }));
+}
+
+// 生成元数据
 
 export async function generateMetadata({ params }: ToolDetailPageProps): Promise<Metadata> {
   const { data: tool } = await supabase
     .from('tools')
-    .select('*')
+    .select(`
+      *,
+      category:categories(name_zh, slug)
+    `)
     .eq('slug', params.slug)
     .eq('status', 'published')
     .single();
@@ -44,14 +63,73 @@ export async function generateMetadata({ params }: ToolDetailPageProps): Promise
   }
 
   const logoUrl = getR2Url(tool.logo_url);
+  const siteConfig = await (async () => {
+    const { getSiteConfig } = await import('@/lib/config');
+    return await getSiteConfig();
+  })();
+
+  // 优化标题和描述
+  const categoryText = tool.category ? tool.category.name_zh : 'AI工具';
+  const title = `${tool.name_zh} - ${categoryText}推荐 | ${siteConfig.site_name}`;
+  
+  // 优化描述：包含关键信息
+  let description = tool.summary_zh || tool.description_zh || '';
+  if (description.length < 80) {
+    description = `${tool.name_zh}是一款优质的${categoryText}。${description}`;
+  }
+  // 确保描述长度在150-160字符
+  if (description.length > 160) {
+    description = description.substring(0, 157) + '...';
+  }
+
+  // 收集关键词
+  const keywords = [
+    tool.name_zh,
+    tool.name_en || '',
+    categoryText,
+    `${categoryText}工具`,
+    tool.pricing_type === 'free' ? '免费AI工具' : 'AI工具',
+  ].filter(Boolean);
 
   return {
-    title: `${tool.name_zh} - AI工具导航`,
-    description: tool.summary_zh || tool.description_zh || '',
+    title,
+    description,
+    keywords,
+    authors: tool.name_en ? [{ name: tool.name_en }] : undefined,
     openGraph: {
-      title: tool.name_zh,
-      description: tool.summary_zh || tool.description_zh || '',
+      type: 'website',
+      locale: 'zh_CN',
+      url: `${siteConfig.site_url}/tools/${tool.slug}`,
+      siteName: siteConfig.site_name,
+      title,
+      description,
+      images: logoUrl ? [
+        {
+          url: logoUrl,
+          width: 800,
+          height: 600,
+          alt: `${tool.name_zh} Logo`,
+        }
+      ] : [],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
       images: logoUrl ? [logoUrl] : [],
+    },
+    alternates: {
+      canonical: `${siteConfig.site_url}/tools/${tool.slug}`,
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+      },
     },
   };
 }
@@ -197,6 +275,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
                     width={40}
                     height={40}
                     className="w-full h-full object-cover"
+                    priority
                   />
                 ) : (
                   <div className="w-full h-full gradient-bg flex items-center justify-center text-white font-bold text-base">
@@ -271,6 +350,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
                       width={800}
                       height={450}
                       className="w-full"
+                      loading="lazy"
                     />
                   </div>
                 </div>
@@ -482,6 +562,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
                               width={40}
                               height={40}
                               className="w-full h-full object-cover"
+                              loading="lazy"
                             />
                           ) : (
                             <div className="w-full h-full gradient-bg flex items-center justify-center text-white text-sm font-bold">

@@ -8,10 +8,23 @@
 import { Navbar, Footer } from '@/components';
 import { Metadata } from 'next';
 
-export const metadata: Metadata = {
-  title: '关于我们 - AI工具导航',
-  description: '了解AI工具导航平台',
-};
+// 动态生成metadata以包含canonical
+export async function generateMetadata(): Promise<Metadata> {
+  const { getSiteConfig } = await import('@/lib/config');
+  const siteConfig = await getSiteConfig();
+
+  return {
+    title: `关于我们 | ${siteConfig.site_name}`,
+    description: `了解${siteConfig.site_name}平台，我们致力于为用户提供最优质的AI工具发现和推荐服务。`,
+    alternates: {
+      canonical: `${siteConfig.site_url}/about`,
+    },
+    robots: {
+      index: true,
+      follow: true,
+    },
+  };
+}
 
 export default function AboutPage() {
   return (

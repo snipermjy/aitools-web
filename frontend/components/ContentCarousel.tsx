@@ -41,13 +41,22 @@ export default function ContentCarousel({
   tutorialItems = [], 
   wikiItems = [] 
 }: ContentCarouselProps) {
-  const [activeTab, setActiveTab] = useState<ContentType>('news');
-
-  const tabs = [
+  // 只保留有内容的标签页
+  const allTabs = [
     { key: 'news' as ContentType, label: 'AI快讯', items: newsItems, href: '/news' },
     { key: 'tutorials' as ContentType, label: 'AI教程', items: tutorialItems, href: '/tutorials' },
     { key: 'wiki' as ContentType, label: 'AI百科', items: wikiItems, href: '/wiki' },
   ];
+  
+  const tabs = allTabs.filter(tab => tab.items.length > 0);
+  
+  // 如果没有任何内容，不显示组件
+  if (tabs.length === 0) {
+    return null;
+  }
+  
+  // 默认激活第一个有内容的标签页
+  const [activeTab, setActiveTab] = useState<ContentType>(tabs[0].key);
 
   const currentTab = tabs.find(t => t.key === activeTab);
   const currentItems = currentTab?.items || [];
@@ -86,48 +95,42 @@ export default function ContentCarousel({
       {/* 卡片区域 */}
       <div className="relative">
         <div className="grid grid-cols-5 gap-4 max-h-[190px] overflow-y-auto pr-2">
-          {currentItems.length > 0 ? (
-            currentItems.map((item) => (
-              <Link
-                key={item.id}
-                href={`/${activeTab}/${item.slug}`}
-                className="group relative h-[160px] rounded-xl overflow-hidden"
-              >
-                {/* 封面图 */}
-                <div className="absolute inset-0">
-                  {item.cover_image_url ? (
-                    <Image
-                      src={item.cover_image_url}
-                      alt={item.title_zh}
-                      fill
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full gradient-bg" />
-                  )}
-                </div>
+          {currentItems.map((item) => (
+            <Link
+              key={item.id}
+              href={`/${activeTab}/${item.slug}`}
+              className="group relative h-[160px] rounded-xl overflow-hidden"
+            >
+              {/* 封面图 */}
+              <div className="absolute inset-0">
+                {item.cover_image_url ? (
+                  <Image
+                    src={item.cover_image_url}
+                    alt={item.title_zh}
+                    fill
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full gradient-bg" />
+                )}
+              </div>
 
-                {/* 遮罩层 */}
-                <div className="absolute inset-0 bg-black/30 group-hover:bg-black/60 transition-colors" />
+              {/* 遮罩层 */}
+              <div className="absolute inset-0 bg-black/30 group-hover:bg-black/60 transition-colors" />
 
-                {/* 内容（悬停显示） */}
-                <div className="absolute inset-0 p-4 flex flex-col justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                  <h3 className="text-white font-semibold text-sm mb-2 line-clamp-2">
-                    {item.title_zh}
-                  </h3>
-                  {item.summary_zh && (
-                    <p className="text-white/90 text-xs line-clamp-2">
-                      {item.summary_zh}
-                    </p>
-                  )}
-                </div>
-              </Link>
-            ))
-          ) : (
-            <div className="col-span-5 text-center py-8 text-text-secondary">
-              暂无内容
-            </div>
-          )}
+              {/* 内容（悬停显示） */}
+              <div className="absolute inset-0 p-4 flex flex-col justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                <h3 className="text-white font-semibold text-sm mb-2 line-clamp-2">
+                  {item.title_zh}
+                </h3>
+                {item.summary_zh && (
+                  <p className="text-white/90 text-xs line-clamp-2">
+                    {item.summary_zh}
+                  </p>
+                )}
+              </div>
+            </Link>
+          ))}
         </div>
       </div>
     </div>

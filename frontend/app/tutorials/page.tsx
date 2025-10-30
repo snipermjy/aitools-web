@@ -11,10 +11,26 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Metadata } from 'next';
 
-export const metadata: Metadata = {
-  title: 'AI教程 - AI工具导航',
-  description: '精选AI工具使用教程和指南',
-};
+// 动态生成metadata以包含canonical
+export async function generateMetadata(): Promise<Metadata> {
+  const { getSiteConfig } = await import('@/lib/config');
+  const siteConfig = await getSiteConfig();
+
+  return {
+    title: `AI教程 - AI工具使用指南 | ${siteConfig.site_name}`,
+    description: '精选AI工具使用教程和指南，帮助您快速上手各类AI工具，提升工作效率。涵盖AI写作、AI绘图、AI视频等多个领域。',
+    keywords: ['AI教程', 'AI工具教程', 'AI使用指南', '人工智能教程', 'AI学习'],
+    alternates: {
+      canonical: `${siteConfig.site_url}/tutorials`,
+    },
+    openGraph: {
+      type: 'website',
+      url: `${siteConfig.site_url}/tutorials`,
+      title: 'AI教程',
+      description: '精选AI工具使用教程和指南',
+    },
+  };
+}
 
 // 缓存策略：开发环境不缓存，生产环境 60 秒重新验证
 export const revalidate = process.env.NODE_ENV === 'development' ? 0 : 60;

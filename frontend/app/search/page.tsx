@@ -16,6 +16,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Navbar, Sidebar, Footer, SearchBox, ToolGrid, Pagination, AdvancedSearchFilters } from '@/components';
 import type { SearchFilters } from '@/components/AdvancedSearchFilters';
+import { useFeaturedTags } from '@/lib/useFeaturedTags';
 
 const ITEMS_PER_PAGE = 24;
 
@@ -24,6 +25,8 @@ export default function SearchPage() {
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
   const currentPage = parseInt(searchParams.get('page') || '1');
+
+  const { tagConfigs } = useFeaturedTags(); // 获取标签配置
 
   const [categories, setCategories] = useState<any[]>([]);
   const [tags, setTags] = useState<any[]>([]);
@@ -142,7 +145,7 @@ export default function SearchPage() {
                   </div>
                 ) : tools.length > 0 ? (
                   <>
-                    <ToolGrid tools={tools} columns={5} />
+                    <ToolGrid tools={tools} columns={5} tagConfigs={tagConfigs} />
                     
                     {/* 分页组件 */}
                     <Pagination

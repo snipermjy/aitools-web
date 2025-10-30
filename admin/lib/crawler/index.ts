@@ -12,7 +12,7 @@
 
 import { supabase } from '../supabase';
 import { analyzeWebsiteWithAI } from '../deepseek';
-import { uploadScreenshot, uploadLogo } from '../r2';
+import { uploadScreenshot, uploadLogo, deleteFromR2 } from '../r2';
 import {
   scrapeWebsite,
   takeScreenshot,
@@ -23,6 +23,19 @@ import {
   closeBrowser,
 } from './scraper';
 import axios from 'axios';
+
+/**
+ * 删除多个 R2 文件
+ */
+async function deleteR2Files(paths: string[]): Promise<void> {
+  for (const path of paths) {
+    try {
+      await deleteFromR2(path);
+    } catch (error) {
+      console.error(`⚠️ 删除 R2 文件失败: ${path}`, error);
+    }
+  }
+}
 
 /**
  * 爬虫结果接口
@@ -55,12 +68,14 @@ export type ProgressCallback = (step: string, message: string) => void;
  * @param url 工具网站 URL
  * @param sourceId 来源站点 ID（可选）
  * @param onProgress 进度回调（可选）
+ * @param shouldStop 终止检查函数（可选）
  * @returns 爬虫结果
  */
 export async function crawlSingleTool(
   url: string,
   sourceId?: string,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  shouldStop?: () => boolean
 ): Promise<CrawlerResult> {
   // 标准化 URL（确保有协议）
   url = normalizeUrl(url);
@@ -88,58 +103,138 @@ export async function crawlSingleTool(
       };
     }
 
-    // 2. 爬取网站内容
+    // 检查是否应该终止
+    if (shouldStop?.()) {
+      console.log('⏹️ 任务已终止');
+      onProgress?.('stopped', `⏹️ 任务已终止`);
+      return {
+        success: false,
+        domain,
+        error: '任务已终止',
+      };
+    }
+
+    // 2. 爬取网站内容（提取元数据）
     console.log('  - 爬取网站内容...');
     onProgress?.('scrape', `📄 正在爬取网站内容...`);
-    const { html, title, description } = await scrapeWebsite(url);
+    const { html, title, description, metadata } = await scrapeWebsite(url);
     onProgress?.('scrape_done', `✅ 网站内容爬取完成`);
 
-    // 3. AI 分析
+    // 检查是否应该终止
+    if (shouldStop?.()) {
+      console.log('⏹️ 任务已终止');
+      onProgress?.('stopped', `⏹️ 任务已终止`);
+      return {
+        success: false,
+        domain,
+        error: '任务已终止',
+      };
+    }
+
+    // 3. AI 分析（传递元数据以提高准确性）
     console.log('  - AI 分析中...');
     onProgress?.('ai', `🤖 AI 正在分析网站内容...（这可能需要 30-60 秒）`);
-    const aiResult = await analyzeWebsiteWithAI(url, html);
+    const aiResult = await analyzeWebsiteWithAI(url, html, {
+      title,
+      ogTitle: metadata?.ogTitle,
+      h1: metadata?.h1,
+      appName: metadata?.appName,
+    });
     onProgress?.('ai_done', `✅ AI 分析完成 - 识别为「${aiResult.name_zh}」`);
 
-    // 4. 截图
+    // 检查是否应该终止
+    if (shouldStop?.()) {
+      console.log('⏹️ 任务已终止');
+      onProgress?.('stopped', `⏹️ 任务已终止`);
+      return {
+        success: false,
+        domain,
+        error: '任务已终止',
+      };
+    }
+
+    // 4. 截图（先上传到 R2）
     console.log('  - 截取网站截图...');
     onProgress?.('screenshot', `📸 正在截取网站截图...`);
-    let screenshotUrls: string[] = [];
+    let screenshotUrl: string | null = null;
+    let logoUrl: string | null = null;
+    
+    // 存储已上传的 R2 文件，失败时需要删除
+    const uploadedR2Files: string[] = [];
+    
     try {
       const screenshot = await takeScreenshot(url);
       onProgress?.('screenshot_upload', `☁️  正在上传截图到 R2...`);
-      const screenshotUrl = await uploadScreenshot(screenshot);
-      screenshotUrls = [screenshotUrl];
+      screenshotUrl = await uploadScreenshot(screenshot);
+      uploadedR2Files.push(screenshotUrl);
       console.log('  - 截图上传成功');
       onProgress?.('screenshot_done', `✅ 截图上传成功`);
-    } catch (error) {
-      console.warn('  - 截图失败（继续）:', error);
-      onProgress?.('screenshot_error', `⚠️  截图失败（继续）`);
+    } catch (error: any) {
+      console.error('  - 截图失败:', error);
+      onProgress?.('screenshot_error', `❌ 截图失败`);
+      // 截图失败，直接抛出错误，不继续
+      throw new Error(`截图失败: ${error.message}`);
+    }
+
+    // 检查是否应该终止
+    if (shouldStop?.()) {
+      console.log('⏹️ 任务已终止，清理已上传的资源');
+      onProgress?.('stopped', `⏹️ 任务已终止`);
+      await deleteR2Files(uploadedR2Files);
+      return {
+        success: false,
+        domain,
+        error: '任务已终止',
+      };
     }
 
     // 5. 获取 Logo（复用已获取的 HTML）
     console.log('  - 获取 Logo...');
     onProgress?.('logo', `🎨 正在获取网站 Logo...`);
-    let logoUrl: string | null = null;
+    
     try {
       const logoUrlFromPage = await extractLogoUrl(url, html);
-      if (logoUrlFromPage) {
-        onProgress?.('logo_download', `⬇️  正在下载 Logo...`);
-        // 下载 Logo 并上传到 R2
-        const logoResponse = await axios.get(logoUrlFromPage, {
-          responseType: 'arraybuffer',
-          timeout: 10000,
-        });
-        const logoBuffer = Buffer.from(logoResponse.data);
-        onProgress?.('logo_upload', `☁️  正在上传 Logo 到 R2...`);
-        logoUrl = await uploadLogo(logoBuffer);
-        console.log('  - Logo 上传成功');
-        onProgress?.('logo_done', `✅ Logo 上传成功`);
-      } else {
-        onProgress?.('logo_fallback', `ℹ️  使用默认 Favicon`);
+      if (!logoUrlFromPage) {
+        // 未找到 Logo，也标记为失败
+        console.error('  - 未找到 Logo');
+        onProgress?.('logo_error', `❌ 未找到 Logo`);
+        await deleteR2Files(uploadedR2Files);
+        throw new Error('未找到 Logo');
       }
-    } catch (error) {
-      console.warn('  - Logo 获取失败（继续）:', error);
-      onProgress?.('logo_error', `⚠️  Logo 获取失败（使用默认）`);
+      
+      onProgress?.('logo_download', `⬇️  正在下载 Logo...`);
+      // 下载 Logo 并上传到 R2
+      const logoResponse = await axios.get(logoUrlFromPage, {
+        responseType: 'arraybuffer',
+        timeout: 10000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        },
+      });
+      const logoBuffer = Buffer.from(logoResponse.data);
+      onProgress?.('logo_upload', `☁️  正在上传 Logo 到 R2...`);
+      logoUrl = await uploadLogo(logoBuffer);
+      uploadedR2Files.push(logoUrl);
+      console.log('  - Logo 上传成功');
+      onProgress?.('logo_done', `✅ Logo 上传成功`);
+    } catch (error: any) {
+      // Logo 获取失败，删除已上传的截图，然后终止爬取
+      console.error('  - Logo 获取失败:', error);
+      onProgress?.('logo_error', `❌ Logo 获取失败`);
+      await deleteR2Files(uploadedR2Files);
+      throw new Error(`Logo 获取失败: ${error.message}`);
+    }
+
+    // 检查是否应该终止
+    if (shouldStop?.()) {
+      console.log('⏹️ 任务已终止，清理已上传的资源');
+      onProgress?.('stopped', `⏹️ 任务已终止`);
+      await deleteR2Files(uploadedR2Files);
+      return {
+        success: false,
+        domain,
+        error: '任务已终止',
+      };
     }
 
     // 6. 查找分类 ID
@@ -185,86 +280,122 @@ export async function crawlSingleTool(
       slug = `${slug}-${Math.random().toString(36).substring(2, 6)}`;
     }
 
+    // 检查是否应该终止
+    if (shouldStop?.()) {
+      console.log('⏹️ 任务已终止，清理已上传的资源');
+      onProgress?.('stopped', `⏹️ 任务已终止`);
+      await deleteR2Files(uploadedR2Files);
+      return {
+        success: false,
+        domain,
+        error: '任务已终止',
+      };
+    }
+
     // 8. 保存到数据库（草稿状态）
     console.log('  - 保存到数据库...');
     onProgress?.('save', `💾 正在保存到数据库...`);
-    const { data: tool, error: saveError } = await supabase
-      .from('tools')
-      .insert({
-        domain, // 工具域名（唯一标识）
-        name_zh: aiResult.name_zh,
-        name_en: aiResult.name_en,
-        slug,
-        official_url: url, // 注意：数据库字段是 official_url，不是 website_url
-        logo_url: logoUrl,
-        summary_zh: aiResult.summary_zh,
-        description_zh: aiResult.description_zh,
-        screenshot_url: screenshotUrls[0] || null, // 注意：数据库是单数 screenshot_url
-        features: aiResult.features_zh || [], // 主要功能列表（JSONB）
-        use_cases: aiResult.use_cases || null, // 适用场景（TEXT）
-        category_id: categoryId,
-        pricing_type: aiResult.pricing_type,
-        pricing_info: aiResult.pricing_details, // 注意：数据库字段是 pricing_info，不是 pricing_details
-        require_login: aiResult.require_login,
-        status: 'draft', // 草稿状态，需要人工审核
-        source: sourceId ? 'crawler' : 'manual',
-      })
-      .select('id')
-      .single();
+    
+    let toolId: string | undefined;
+    
+    try {
+      const { data: tool, error: saveError } = await supabase
+        .from('tools')
+        .insert({
+          domain, // 工具域名（唯一标识）
+          name_zh: aiResult.name_zh,
+          name_en: aiResult.name_en,
+          slug,
+          official_url: url, // 注意：数据库字段是 official_url，不是 website_url
+          logo_url: logoUrl,
+          summary_zh: aiResult.summary_zh,
+          description_zh: aiResult.description_zh,
+          screenshot_url: screenshotUrl, // 使用之前上传的截图 URL
+          features: aiResult.features_zh || [], // 主要功能列表（JSONB）
+          use_cases: aiResult.use_cases || null, // 适用场景（TEXT）
+          category_id: categoryId,
+          pricing_type: aiResult.pricing_type,
+          pricing_info: aiResult.pricing_details, // 注意：数据库字段是 pricing_info，不是 pricing_details
+          require_login: aiResult.require_login,
+          status: 'draft', // 草稿状态，需要人工审核
+          source: sourceId ? 'crawler' : 'manual',
+        })
+        .select('id')
+        .single();
 
-    if (saveError) {
-      onProgress?.('error', `❌ 保存失败: ${saveError.message}`);
-      throw saveError;
-    }
-    onProgress?.('save_done', `✅ 数据库保存成功`);
-
-    // 9. 保存标签关联
-    if (aiResult.tags && aiResult.tags.length > 0 && tool) {
-      onProgress?.('tags', `🏷️  正在处理标签 (${aiResult.tags.length} 个)...`);
-      for (const tagName of aiResult.tags) {
-        // 查找或创建标签
-        let { data: tag } = await supabase
-          .from('tags')
-          .select('id')
-          .eq('name_zh', tagName)
-          .single();
-
-        if (!tag) {
-          // 创建新标签
-          const tagSlug = tagName.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-');
-          const { data: newTag } = await supabase
-            .from('tags')
-            .insert({
-              name_zh: tagName,
-              slug: tagSlug,
-            })
-            .select('id')
-            .single();
-          
-          tag = newTag;
-        }
-
-        if (tag) {
-          // 创建关联
-          await supabase
-            .from('tool_tags')
-            .insert({
-              tool_id: tool.id,
-              tag_id: tag.id,
-            });
-        }
+      if (saveError) {
+        onProgress?.('error', `❌ 保存失败: ${saveError.message}`);
+        // 保存失败，删除已上传的 R2 文件
+        await deleteR2Files(uploadedR2Files);
+        throw saveError;
       }
-      onProgress?.('tags_done', `✅ 标签处理完成`);
+      
+      toolId = tool?.id;
+      onProgress?.('save_done', `✅ 数据库保存成功`);
+      
+      // 9. 保存标签关联
+      if (aiResult.tags && aiResult.tags.length > 0 && tool) {
+        onProgress?.('tags', `🏷️  正在处理标签 (${aiResult.tags.length} 个)...`);
+        for (const tagName of aiResult.tags) {
+          // 查找或创建标签
+          let { data: tag } = await supabase
+            .from('tags')
+            .select('id')
+            .eq('name_zh', tagName)
+            .single();
+
+          if (!tag) {
+            // 创建新标签
+            const tagSlug = tagName.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-');
+            const { data: newTag } = await supabase
+              .from('tags')
+              .insert({
+                name_zh: tagName,
+                slug: tagSlug,
+              })
+              .select('id')
+              .single();
+            
+            tag = newTag;
+          }
+
+          if (tag) {
+            // 创建关联
+            await supabase
+              .from('tool_tags')
+              .insert({
+                tool_id: tool.id,
+                tag_id: tag.id,
+              });
+          }
+        }
+        onProgress?.('tags_done', `✅ 标签处理完成`);
+      }
+
+      console.log(`✅ 爬取成功: ${aiResult.name_zh}`);
+      onProgress?.('complete', `🎉 爬取成功: ${aiResult.name_zh}`);
+
+      return {
+        success: true,
+        toolId: tool?.id,
+        domain,
+      };
+    } catch (error: any) {
+      // 如果是数据库保存或标签处理失败，执行完全回滚
+      console.error(`❌ 保存失败: ${url}`, error);
+      
+      // 删除已保存的数据库记录（如果有）
+      if (toolId) {
+        console.log(`🗑️  回滚：删除数据库记录 ${toolId}`);
+        await supabase.from('tool_tags').delete().eq('tool_id', toolId);
+        await supabase.from('tools').delete().eq('id', toolId);
+      }
+      
+      // 删除已上传的 R2 文件
+      await deleteR2Files(uploadedR2Files);
+      
+      throw error;
     }
-
-    console.log(`✅ 爬取成功: ${aiResult.name_zh}`);
-    onProgress?.('complete', `🎉 爬取成功: ${aiResult.name_zh}`);
-
-    return {
-      success: true,
-      toolId: tool?.id,
-      domain,
-    };
   } catch (error: any) {
     console.error(`❌ 爬取失败: ${url}`, error);
     onProgress?.('error', `❌ 爬取失败: ${error.message}`);
@@ -407,12 +538,14 @@ export async function testCrawl(url: string): Promise<any> {
   let errors: string[] = [];
 
   try {
-    // 步骤 1: 爬取网站
+    // 步骤 1: 爬取网站（提取元数据）
     console.log('🔍 步骤 1/4: 开始爬取网站...');
+    let metadata: any;
     try {
       const scrapeResult = await scrapeWebsite(url);
       html = scrapeResult.html;
       title = scrapeResult.title;
+      metadata = scrapeResult.metadata;
       console.log('✅ 步骤 1/4: 网站爬取完成');
     } catch (error: any) {
       console.error('❌ 步骤 1/4: 网站爬取失败:', error.message);
@@ -432,10 +565,15 @@ export async function testCrawl(url: string): Promise<any> {
       // 截图失败不影响继续
     }
 
-    // 步骤 3: AI 分析（可能超时，但不影响返回其他数据）
+    // 步骤 3: AI 分析（传递元数据以提高准确性）
     console.log('🤖 步骤 3/4: 开始 AI 分析...');
     try {
-      aiResult = await analyzeWebsiteWithAI(url, html);
+      aiResult = await analyzeWebsiteWithAI(url, html, {
+        title,
+        ogTitle: metadata?.ogTitle,
+        h1: metadata?.h1,
+        appName: metadata?.appName,
+      });
       console.log('✅ 步骤 3/4: AI 分析完成');
     } catch (error: any) {
       console.error('⚠️ 步骤 3/4: AI 分析失败:', error.message);

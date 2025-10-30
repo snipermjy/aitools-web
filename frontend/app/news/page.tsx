@@ -15,10 +15,26 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Metadata } from 'next';
 
-export const metadata: Metadata = {
-  title: 'AI快讯 - AI工具导航',
-  description: '最新的AI行业资讯和动态',
-};
+// 动态生成metadata以包含canonical
+export async function generateMetadata(): Promise<Metadata> {
+  const { getSiteConfig } = await import('@/lib/config');
+  const siteConfig = await getSiteConfig();
+
+  return {
+    title: `AI快讯 - 最新AI资讯 | ${siteConfig.site_name}`,
+    description: '最新的AI行业资讯和动态，实时跟踪人工智能领域的重要新闻、产品发布和技术突破。',
+    keywords: ['AI快讯', 'AI资讯', 'AI新闻', '人工智能动态', 'AI行业新闻'],
+    alternates: {
+      canonical: `${siteConfig.site_url}/news`,
+    },
+    openGraph: {
+      type: 'website',
+      url: `${siteConfig.site_url}/news`,
+      title: 'AI快讯',
+      description: '最新的AI行业资讯和动态',
+    },
+  };
+}
 
 // 缓存策略：开发环境不缓存，生产环境 60 秒重新验证
 export const revalidate = process.env.NODE_ENV === 'development' ? 0 : 60;

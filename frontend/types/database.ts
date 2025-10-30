@@ -184,6 +184,10 @@ export interface FeaturedTool {
   id: string;
   tool_id: string;
   sort_order: number;
+  tag?: string | null; // 推荐标签：editors_choice, trending, new_arrival, best_value
+  start_date?: string | null; // 推荐开始时间
+  end_date?: string | null; // 推荐结束时间
+  is_enabled: boolean; // 是否启用
   created_at: string;
   updated_at: string;
 }

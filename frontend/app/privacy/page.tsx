@@ -8,9 +8,23 @@
 import { Navbar, Footer } from '@/components';
 import { Metadata } from 'next';
 
-export const metadata: Metadata = {
-  title: '隐私政策 - AI工具导航',
-};
+// 动态生成metadata以包含canonical
+export async function generateMetadata(): Promise<Metadata> {
+  const { getSiteConfig } = await import('@/lib/config');
+  const siteConfig = await getSiteConfig();
+
+  return {
+    title: `隐私政策 | ${siteConfig.site_name}`,
+    description: `${siteConfig.site_name}隐私政策，了解我们如何收集、使用和保护您的个人信息。`,
+    alternates: {
+      canonical: `${siteConfig.site_url}/privacy`,
+    },
+    robots: {
+      index: true,
+      follow: true,
+    },
+  };
+}
 
 export default function PrivacyPage() {
   return (

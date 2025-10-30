@@ -8,9 +8,23 @@
 import { Navbar, Footer } from '@/components';
 import { Metadata } from 'next';
 
-export const metadata: Metadata = {
-  title: '使用条款 - AI工具导航',
-};
+// 动态生成metadata以包含canonical
+export async function generateMetadata(): Promise<Metadata> {
+  const { getSiteConfig } = await import('@/lib/config');
+  const siteConfig = await getSiteConfig();
+
+  return {
+    title: `使用条款 | ${siteConfig.site_name}`,
+    description: `${siteConfig.site_name}使用条款，了解使用本网站的相关规则和条款。`,
+    alternates: {
+      canonical: `${siteConfig.site_url}/terms`,
+    },
+    robots: {
+      index: true,
+      follow: true,
+    },
+  };
+}
 
 export default function TermsPage() {
   return (

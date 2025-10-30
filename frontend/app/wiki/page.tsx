@@ -11,10 +11,26 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Metadata } from 'next';
 
-export const metadata: Metadata = {
-  title: 'AI百科 - AI工具导航',
-  description: 'AI相关概念和术语百科',
-};
+// 动态生成metadata以包含canonical
+export async function generateMetadata(): Promise<Metadata> {
+  const { getSiteConfig } = await import('@/lib/config');
+  const siteConfig = await getSiteConfig();
+
+  return {
+    title: `AI百科 - 人工智能术语大全 | ${siteConfig.site_name}`,
+    description: 'AI相关概念和术语百科，全面解读人工智能领域的专业术语、技术概念和基础知识，帮助您更好地理解AI技术。',
+    keywords: ['AI百科', 'AI术语', '人工智能百科', 'AI概念', 'AI基础知识'],
+    alternates: {
+      canonical: `${siteConfig.site_url}/wiki`,
+    },
+    openGraph: {
+      type: 'website',
+      url: `${siteConfig.site_url}/wiki`,
+      title: 'AI百科',
+      description: 'AI相关概念和术语百科',
+    },
+  };
+}
 
 // 缓存策略：开发环境不缓存，生产环境 60 秒重新验证
 export const revalidate = process.env.NODE_ENV === 'development' ? 0 : 60;

@@ -97,14 +97,21 @@ export function normalizeUrl(url: string): string {
 }
 
 /**
- * 爬取网站内容
+ * 爬取网站内容（增强版 - 提取完整元数据）
  * @param url 网站 URL
- * @returns HTML 内容和页面标题
+ * @returns HTML 内容和页面元数据
  */
 export async function scrapeWebsite(url: string): Promise<{
   html: string;
   title: string;
   description?: string;
+  metadata?: {
+    ogTitle?: string;
+    ogDescription?: string;
+    h1?: string;
+    appName?: string;
+    twitterTitle?: string;
+  };
 }> {
   // 标准化 URL
   url = normalizeUrl(url);
@@ -128,17 +135,64 @@ export async function scrapeWebsite(url: string): Promise<{
       2000 // 2秒延迟
     );
 
-    // 获取内容
+    // 获取基本内容
     const html = await page.content();
     const title = await page.title();
 
-    // 尝试获取 meta description
+    // 提取 meta description
     const description = await page.$eval(
       'meta[name="description"]',
       (el) => el.getAttribute('content')
     ).catch(() => undefined);
 
-    return { html, title, description };
+    // 🌟 提取更多元数据（用于优化AI分析）
+    const metadata: any = {};
+
+    // Open Graph title
+    metadata.ogTitle = await page.$eval(
+      'meta[property="og:title"]',
+      (el) => el.getAttribute('content')
+    ).catch(() => undefined);
+
+    // Open Graph description
+    metadata.ogDescription = await page.$eval(
+      'meta[property="og:description"]',
+      (el) => el.getAttribute('content')
+    ).catch(() => undefined);
+
+    // H1 标签（通常是页面主标题）
+    metadata.h1 = await page.$eval(
+      'h1',
+      (el) => el.textContent?.trim()
+    ).catch(() => undefined);
+
+    // Application name
+    metadata.appName = await page.$eval(
+      'meta[name="application-name"]',
+      (el) => el.getAttribute('content')
+    ).catch(() => undefined);
+
+    // Apple mobile web app title
+    const appleTitle = await page.$eval(
+      'meta[name="apple-mobile-web-app-title"]',
+      (el) => el.getAttribute('content')
+    ).catch(() => undefined);
+    if (appleTitle) metadata.appName = appleTitle;
+
+    // Twitter title
+    metadata.twitterTitle = await page.$eval(
+      'meta[name="twitter:title"]',
+      (el) => el.getAttribute('content')
+    ).catch(() => undefined);
+
+    console.log('📊 提取的元数据:', {
+      title,
+      ogTitle: metadata.ogTitle,
+      h1: metadata.h1,
+      appName: metadata.appName,
+    });
+
+    return { html, title, description, metadata };
   } catch (error: any) {
     const errorMessage = error.message || '未知错误';
     console.error(`❌ 爬取网站失败: ${url}`);

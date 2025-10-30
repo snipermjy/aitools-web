@@ -49,17 +49,18 @@ export async function POST(request: NextRequest) {
     };
     const tableName = tableMap[entityType];
 
-    // 增加浏览次数
-    const { error } = await supabase.rpc('increment_view_count', {
-      table_name: tableName,
-      record_id: entityId,
-    });
+    // 增加浏览次数（先查询当前值，然后+1）
+    const { data: current, error: fetchError } = await supabase
+      .from(tableName)
+      .select('view_count')
+      .eq('id', entityId)
+      .single();
 
-    if (error) {
-      // 如果 RPC 函数不存在，直接更新
+    if (!fetchError && current) {
+      const newViewCount = (current.view_count || 0) + 1;
       const { error: updateError } = await supabase
         .from(tableName)
-        .update({ view_count: supabase.raw('view_count + 1') })
+        .update({ view_count: newViewCount })
         .eq('id', entityId);
 
       if (updateError) {

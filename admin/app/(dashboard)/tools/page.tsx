@@ -3,11 +3,14 @@
  * 功能：展示和管理所有AI工具
  * 作者：AI Assistant
  * 创建日期：2025-10-26
+ * 更新日期：2025-10-29（添加推荐专区批量操作）
  * 
  * 说明：
  * - 工具列表展示
- * - 搜索和筛选
- * - 状态管理（发布/草稿/归档）
+ * - 多维度筛选（分类、价格类型、状态、来源、推荐状态、评分、日期范围）
+ * - 批量操作（批量发布、归档、删除、修改分类、设为推荐、取消推荐）
+ * - 推荐状态可视化（已推荐工具显示⭐标识）
+ * - 单个操作（编辑、删除、快速状态切换）
  */
 
 'use client';
@@ -19,17 +22,55 @@ import DeleteProgressModal from '@/components/DeleteProgressModal';
 import ClearAllProgressModal from '@/components/ClearAllProgressModal';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { PlusIcon, PencilIcon, TrashIcon, ExclamationTriangleIcon, CheckCircleIcon, EyeIcon, ArchiveBoxIcon } from '@heroicons/react/24/outline';
+import {
+  PlusIcon,
+  PencilIcon,
+  TrashIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
+  EyeIcon,
+  ArchiveBoxIcon,
+  FunnelIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline';
 
 export default function ToolsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const status = searchParams.get('status');
-  const search = searchParams.get('search');
   
   const [tools, setTools] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [featuredToolIds, setFeaturedToolIds] = useState<Set<string>>(new Set()); // 推荐工具ID集合
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // 筛选状态
+  const [filters, setFilters] = useState({
+    search: searchParams.get('search') || '',
+    status: searchParams.get('status') || 'all',
+    category: searchParams.get('category') || 'all',
+    pricing: searchParams.get('pricing') || 'all',
+    source: searchParams.get('source') || 'all',
+    rating: searchParams.get('rating') || 'all',
+    featured: searchParams.get('featured') || 'all', // 推荐状态筛选
+    dateFrom: searchParams.get('dateFrom') || '',
+    dateTo: searchParams.get('dateTo') || '',
+  });
+  
+  const [showFilters, setShowFilters] = useState(true); // 默认展开
+  
+  // 批量操作状态
+  const [selectedTools, setSelectedTools] = useState<Set<string>>(new Set());
+  const [showBatchActions, setShowBatchActions] = useState(false);
+  const [batchCategory, setBatchCategory] = useState('');
+  
+  // 批量推荐设置
+  const [showFeaturedOptions, setShowFeaturedOptions] = useState(false);
+  const [featuredOptions, setFeaturedOptions] = useState({
+    tag: '',
+    start_date: '',
+    end_date: '',
+  });
   
   // 删除进度模态框状态
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -37,86 +78,405 @@ export default function ToolsPage() {
   
   // 清除所有数据模态框状态
   const [showClearAllModal, setShowClearAllModal] = useState(false);
-  // 加载数据
+
+  // 加载分类
   useEffect(() => {
-    async function loadTools() {
-      setLoading(true);
-      setError(null);
-      
-      try {
-        // 构建查询
-        let query = supabase
-          .from('tools')
-          .select('*, category:categories(name_zh)')
-          .order('created_at', { ascending: false });
+    loadCategories();
+  }, []);
 
-        // 按状态筛选
-        if (status && status !== 'all') {
-          query = query.eq('status', status);
-        }
+  async function loadCategories() {
+    const { data } = await supabase
+      .from('categories')
+      .select('id, name_zh')
+      .order('sort_order');
+    
+    if (data) setCategories(data);
+  }
 
-        // 按名称搜索
-        if (search) {
-          query = query.or(`name_zh.ilike.%${search}%,name_en.ilike.%${search}%`);
-        }
-
-        const { data, error: queryError } = await query.limit(50);
-        
-        if (queryError) throw queryError;
-        
-        setTools(data || []);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-
+  // 加载工具数据
+  useEffect(() => {
     loadTools();
-  }, [status, search]);
+  }, [filters]);
 
-  // 处理状态变更
-  const handleStatusChange = (newStatus: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('status', newStatus);
-    router.push(`/tools?${params.toString()}`);
-  };
+  async function loadTools() {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // 加载推荐工具ID列表
+      const { data: featuredData } = await supabase
+        .from('featured_tools')
+        .select('tool_id');
+      
+      if (featuredData) {
+        setFeaturedToolIds(new Set(featuredData.map(f => f.tool_id)));
+      }
+      
+      // 构建查询
+      let query = supabase
+        .from('tools')
+        .select('*, category:categories(name_zh)')
+        .order('created_at', { ascending: false });
 
-  // 处理搜索
-  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const searchValue = formData.get('search') as string;
-    const params = new URLSearchParams(searchParams.toString());
-    if (searchValue) {
-      params.set('search', searchValue);
-    } else {
-      params.delete('search');
+      // 应用筛选
+      if (filters.status && filters.status !== 'all') {
+        query = query.eq('status', filters.status);
+      }
+
+      if (filters.category && filters.category !== 'all') {
+        query = query.eq('category_id', filters.category);
+      }
+
+      if (filters.pricing && filters.pricing !== 'all') {
+        query = query.eq('pricing_type', filters.pricing);
+      }
+
+      if (filters.source && filters.source !== 'all') {
+        query = query.eq('source', filters.source);
+      }
+
+      if (filters.rating && filters.rating !== 'all') {
+        switch (filters.rating) {
+          case '4.5+':
+            query = query.gte('rating_avg', 4.5);
+            break;
+          case '4.0+':
+            query = query.gte('rating_avg', 4.0);
+            break;
+          case '3.5+':
+            query = query.gte('rating_avg', 3.5);
+            break;
+          case '3.0-':
+            query = query.lt('rating_avg', 3.0);
+            break;
+        }
+      }
+
+      if (filters.dateFrom) {
+        query = query.gte('created_at', new Date(filters.dateFrom).toISOString());
+      }
+
+      if (filters.dateTo) {
+        const endDate = new Date(filters.dateTo);
+        endDate.setHours(23, 59, 59, 999);
+        query = query.lte('created_at', endDate.toISOString());
+      }
+
+      // 按名称搜索
+      if (filters.search) {
+        query = query.or(`name_zh.ilike.%${filters.search}%,name_en.ilike.%${filters.search}%`);
+      }
+
+      const { data, error: queryError } = await query.limit(200);
+      
+      if (queryError) throw queryError;
+      
+      let filteredData = data || [];
+      
+      // 前端筛选推荐状态（因为featured_tools是独立表）
+      if (filters.featured === 'yes') {
+        filteredData = filteredData.filter(tool => featuredToolIds.has(tool.id));
+      } else if (filters.featured === 'no') {
+        filteredData = filteredData.filter(tool => !featuredToolIds.has(tool.id));
+      }
+      
+      setTools(filteredData);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-    router.push(`/tools?${params.toString()}`);
+  }
+
+  // 更新筛选
+  const updateFilter = (key: string, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
   };
 
-  // 处理删除工具 - 打开进度模态框
+  // 重置筛选
+  const resetFilters = () => {
+    setFilters({
+      search: '',
+      status: 'all',
+      category: 'all',
+      pricing: 'all',
+      source: 'all',
+      rating: 'all',
+      featured: 'all',
+      dateFrom: '',
+      dateTo: '',
+    });
+  };
+
+  // 计算激活的筛选数量
+  const activeFiltersCount = Object.entries(filters).filter(([key, value]) => {
+    if (key === 'search') return value !== '';
+    return value !== 'all' && value !== '';
+  }).length;
+
+  // 全选/取消全选
+  const toggleSelectAll = () => {
+    if (selectedTools.size === tools.length) {
+      setSelectedTools(new Set());
+    } else {
+      setSelectedTools(new Set(tools.map(t => t.id)));
+    }
+  };
+
+  // 切换单个工具选择
+  const toggleSelectTool = (toolId: string) => {
+    const newSelected = new Set(selectedTools);
+    if (newSelected.has(toolId)) {
+      newSelected.delete(toolId);
+    } else {
+      newSelected.add(toolId);
+    }
+    setSelectedTools(newSelected);
+  };
+
+  // 批量发布
+  const handleBatchPublish = async () => {
+    if (selectedTools.size === 0) {
+      alert('请先选择要发布的工具');
+      return;
+    }
+
+    if (!confirm(`确定要发布选中的 ${selectedTools.size} 个工具吗？`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('tools')
+        .update({ status: 'published', published_at: new Date().toISOString() })
+        .in('id', Array.from(selectedTools));
+
+      if (error) throw error;
+
+      alert(`✅ 已成功发布 ${selectedTools.size} 个工具！`);
+      setSelectedTools(new Set());
+      loadTools();
+    } catch (err: any) {
+      alert(`❌ 批量发布失败: ${err.message}`);
+    }
+  };
+
+  // 批量归档
+  const handleBatchArchive = async () => {
+    if (selectedTools.size === 0) {
+      alert('请先选择要归档的工具');
+      return;
+    }
+
+    if (!confirm(`确定要归档选中的 ${selectedTools.size} 个工具吗？`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('tools')
+        .update({ status: 'archived' })
+        .in('id', Array.from(selectedTools));
+
+      if (error) throw error;
+
+      alert(`✅ 已成功归档 ${selectedTools.size} 个工具！`);
+      setSelectedTools(new Set());
+      loadTools();
+    } catch (err: any) {
+      alert(`❌ 批量归档失败: ${err.message}`);
+    }
+  };
+
+  // 批量修改分类
+  const handleBatchChangeCategory = async () => {
+    if (selectedTools.size === 0) {
+      alert('请先选择要修改的工具');
+      return;
+    }
+
+    if (!batchCategory) {
+      alert('请选择目标分类');
+      return;
+    }
+
+    if (!confirm(`确定要将选中的 ${selectedTools.size} 个工具移动到指定分类吗？`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('tools')
+        .update({ category_id: batchCategory === 'none' ? null : batchCategory })
+        .in('id', Array.from(selectedTools));
+
+      if (error) throw error;
+
+      alert(`✅ 已成功修改 ${selectedTools.size} 个工具的分类！`);
+      setSelectedTools(new Set());
+      setBatchCategory('');
+      setShowBatchActions(false);
+      loadTools();
+    } catch (err: any) {
+      alert(`❌ 批量修改分类失败: ${err.message}`);
+    }
+  };
+
+  // 批量删除
+  const handleBatchDelete = async () => {
+    if (selectedTools.size === 0) {
+      alert('请先选择要删除的工具');
+      return;
+    }
+
+    const firstConfirm = confirm(
+      `⚠️  危险操作！\n\n确定要删除选中的 ${selectedTools.size} 个工具吗？\n\n此操作将删除数据库记录和 R2 文件，不可恢复！`
+    );
+
+    if (!firstConfirm) return;
+
+    const secondConfirm = confirm(
+      `🚨 最终确认！\n\n真的要删除这 ${selectedTools.size} 个工具吗？\n\n这是最后一次机会！`
+    );
+
+    if (!secondConfirm) return;
+
+    try {
+      // 调用批量删除 API
+      const response = await fetch('/api/tools/batch-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toolIds: Array.from(selectedTools) }),
+      });
+
+      if (!response.ok) {
+        throw new Error('批量删除失败');
+      }
+
+      alert(`✅ 已成功删除 ${selectedTools.size} 个工具！`);
+      setSelectedTools(new Set());
+      loadTools();
+    } catch (err: any) {
+      alert(`❌ 批量删除失败: ${err.message}`);
+    }
+  };
+
+  // 批量添加到推荐专区
+  const handleBatchAddToFeatured = async () => {
+    if (selectedTools.size === 0) {
+      alert('请先选择要推荐的工具');
+      return;
+    }
+
+    // 过滤出还未推荐的工具
+    const toolsToAdd = Array.from(selectedTools).filter(id => !featuredToolIds.has(id));
+    
+    if (toolsToAdd.length === 0) {
+      alert('选中的工具都已经在推荐专区中了');
+      return;
+    }
+
+    // 显示高级选项面板
+    setShowFeaturedOptions(true);
+  };
+
+  // 确认批量推荐（带高级选项）
+  const handleConfirmBatchAddToFeatured = async () => {
+    const toolsToAdd = Array.from(selectedTools).filter(id => !featuredToolIds.has(id));
+    
+    if (!confirm(`确定要将选中的 ${toolsToAdd.length} 个工具添加到推荐专区吗？`)) {
+      return;
+    }
+
+    try {
+      // 获取当前最大sort_order
+      const { data: maxSortData } = await supabase
+        .from('featured_tools')
+        .select('sort_order')
+        .order('sort_order', { ascending: false })
+        .limit(1)
+        .single();
+
+      let currentMaxSort = maxSortData?.sort_order || 0;
+
+      // 批量插入
+      const insertData = toolsToAdd.map((toolId, index) => ({
+        tool_id: toolId,
+        sort_order: currentMaxSort + index + 1,
+        is_enabled: true,
+        tag: featuredOptions.tag || null,
+        start_date: featuredOptions.start_date || null,
+        end_date: featuredOptions.end_date || null,
+      }));
+
+      const { error } = await supabase
+        .from('featured_tools')
+        .insert(insertData);
+
+      if (error) throw error;
+
+      alert(`✅ 已成功添加 ${toolsToAdd.length} 个工具到推荐专区！`);
+      setSelectedTools(new Set());
+      setShowFeaturedOptions(false);
+      setFeaturedOptions({ tag: '', start_date: '', end_date: '' });
+      loadTools();
+    } catch (err: any) {
+      alert(`❌ 批量添加到推荐专区失败: ${err.message}`);
+    }
+  };
+
+  // 批量从推荐专区移除
+  const handleBatchRemoveFromFeatured = async () => {
+    if (selectedTools.size === 0) {
+      alert('请先选择要取消推荐的工具');
+      return;
+    }
+
+    // 过滤出已推荐的工具
+    const toolsToRemove = Array.from(selectedTools).filter(id => featuredToolIds.has(id));
+    
+    if (toolsToRemove.length === 0) {
+      alert('选中的工具都不在推荐专区中');
+      return;
+    }
+
+    if (!confirm(`确定要将选中的 ${toolsToRemove.length} 个工具从推荐专区移除吗？`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('featured_tools')
+        .delete()
+        .in('tool_id', toolsToRemove);
+
+      if (error) throw error;
+
+      alert(`✅ 已成功移除 ${toolsToRemove.length} 个工具的推荐！`);
+      setSelectedTools(new Set());
+      loadTools();
+    } catch (err: any) {
+      alert(`❌ 批量取消推荐失败: ${err.message}`);
+    }
+  };
+
+  // 处理单个删除
   const handleDelete = (tool: any) => {
-    const confirmed = window.confirm(
+    const confirmed = confirm(
       `确定要删除工具「${tool.name_zh}」吗？\n\n此操作将：\n✓ 删除数据库记录\n✓ 删除 R2 截图和 Logo\n\n此操作不可恢复！`
     );
 
     if (!confirmed) return;
 
-    // 打开进度模态框
     setDeletingTool({ id: tool.id, name: tool.name_zh });
     setShowDeleteModal(true);
   };
 
   // 删除完成回调
   const handleDeleteComplete = () => {
-    // 从列表中移除已删除的工具
     if (deletingTool) {
       setTools((prevTools) => prevTools.filter((t) => t.id !== deletingTool.id));
     }
-    
-    // 关闭模态框
     setShowDeleteModal(false);
     setDeletingTool(null);
   };
@@ -124,10 +484,9 @@ export default function ToolsPage() {
   // 删除失败回调
   const handleDeleteError = (error: string) => {
     console.error('删除失败:', error);
-    // 模态框会显示错误，不需要额外处理
   };
 
-  // 关闭模态框
+  // 关闭删除模态框
   const handleCloseModal = () => {
     setShowDeleteModal(false);
     setDeletingTool(null);
@@ -135,48 +494,36 @@ export default function ToolsPage() {
 
   // 处理清除所有数据
   const handleClearAll = () => {
-    // 多重确认机制
-    const firstConfirm = window.confirm(
+    const firstConfirm = confirm(
       '⚠️  危险操作！\n\n' +
       '你确定要清除所有工具数据吗？\n\n' +
       '此操作将：\n' +
       '✓ 删除数据库中所有工具记录\n' +
       '✓ 删除 R2 存储中所有截图和 Logo\n\n' +
-      '此操作不可恢复！\n\n' +
-      '点击"确定"继续...'
+      '此操作不可恢复！'
     );
 
     if (!firstConfirm) return;
 
-    // 二次确认
-    const secondConfirm = window.confirm(
-      '🚨 最终确认！\n\n' +
-      `当前有 ${tools.length} 个工具将被永久删除！\n\n` +
-      '你真的确定要继续吗？\n\n' +
-      '这是最后一次机会！'
+    const secondConfirm = confirm(
+      `🚨 最终确认！\n\n当前有 ${tools.length} 个工具将被永久删除！\n\n你真的确定要继续吗？`
     );
 
     if (!secondConfirm) return;
 
-    // 打开进度模态框
-    console.log('🗑️  开始清除所有数据');
     setShowClearAllModal(true);
   };
 
   // 清除完成回调
   const handleClearAllComplete = () => {
-    // 清空列表
     setTools([]);
-    // 关闭模态框
     setShowClearAllModal(false);
-    // 刷新页面
     router.refresh();
   };
 
   // 关闭清除模态框
   const handleCloseClearAllModal = () => {
     setShowClearAllModal(false);
-    // 刷新数据
     router.refresh();
   };
 
@@ -195,21 +542,25 @@ export default function ToolsPage() {
       'archived': '已归档',
     };
 
-    const confirmed = window.confirm(
+    const confirmed = confirm(
       `确定要将「${toolName}」的状态从「${statusNameMap[currentStatus]}」改为「${statusNameMap[newStatus]}」吗？`
     );
 
     if (!confirmed) return;
 
     try {
+      const updateData: any = { status: newStatus };
+      if (newStatus === 'published' && currentStatus !== 'published') {
+        updateData.published_at = new Date().toISOString();
+      }
+
       const { error } = await supabase
         .from('tools')
-        .update({ status: newStatus })
+        .update(updateData)
         .eq('id', toolId);
 
       if (error) throw error;
 
-      // 更新本地状态
       setTools((prevTools) =>
         prevTools.map((t) =>
           t.id === toolId ? { ...t, status: newStatus } : t
@@ -228,18 +579,16 @@ export default function ToolsPage() {
         {/* 页头 */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-text-primary">
-            工具管理
+            工具管理 {tools.length > 0 && `(${tools.length})`}
           </h1>
           <div className="flex items-center gap-3">
-            {/* 一键清除所有数据按钮 */}
             {tools.length > 0 && (
               <button
                 onClick={handleClearAll}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 border-2 border-red-700"
-                title="清除所有工具数据"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
               >
                 <ExclamationTriangleIcon className="w-5 h-5" />
-                清除所有数据
+                清除所有
               </button>
             )}
             
@@ -250,37 +599,310 @@ export default function ToolsPage() {
           </div>
         </div>
 
-        {/* 搜索和筛选 */}
+        {/* 筛选区域 */}
         <div className="card mb-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            {/* 搜索框 */}
-            <div className="flex-1">
-              <form onSubmit={handleSearch}>
+          {/* 筛选按钮 */}
+          <div className="flex items-center justify-between mb-4">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-border rounded-lg hover:bg-background transition-colors"
+            >
+              <FunnelIcon className="w-5 h-5" />
+              <span>高级筛选</span>
+              {activeFiltersCount > 0 && (
+                <span className="px-2 py-0.5 bg-primary text-white text-xs rounded-full">
+                  {activeFiltersCount}
+                </span>
+              )}
+            </button>
+
+            {activeFiltersCount > 0 && (
+              <button
+                onClick={resetFilters}
+                className="flex items-center gap-2 text-text-secondary hover:text-primary transition-colors"
+              >
+                <XMarkIcon className="w-5 h-5" />
+                <span>清除筛选</span>
+              </button>
+            )}
+          </div>
+
+          {/* 筛选面板 */}
+          {showFilters && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4 border-t border-border">
+              <div>
+                <label className="block text-sm font-medium mb-2">搜索</label>
                 <input
                   type="text"
-                  name="search"
-                  defaultValue={search || ''}
+                  value={filters.search}
+                  onChange={(e) => updateFilter('search', e.target.value)}
                   placeholder="搜索工具名称..."
                   className="input"
                 />
-              </form>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">状态</label>
+                <select
+                  value={filters.status}
+                  onChange={(e) => updateFilter('status', e.target.value)}
+                  className="select"
+                >
+                  <option value="all">全部状态</option>
+                  <option value="published">已发布</option>
+                  <option value="draft">草稿</option>
+                  <option value="archived">已归档</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">分类</label>
+                <select
+                  value={filters.category}
+                  onChange={(e) => updateFilter('category', e.target.value)}
+                  className="select"
+                >
+                  <option value="all">全部分类</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name_zh}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">价格类型</label>
+                <select
+                  value={filters.pricing}
+                  onChange={(e) => updateFilter('pricing', e.target.value)}
+                  className="select"
+                >
+                  <option value="all">全部类型</option>
+                  <option value="free">免费</option>
+                  <option value="freemium">免费试用</option>
+                  <option value="paid">付费</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">来源</label>
+                <select
+                  value={filters.source}
+                  onChange={(e) => updateFilter('source', e.target.value)}
+                  className="select"
+                >
+                  <option value="all">全部来源</option>
+                  <option value="manual">手动添加</option>
+                  <option value="crawler">爬虫获取</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">评分</label>
+                <select
+                  value={filters.rating}
+                  onChange={(e) => updateFilter('rating', e.target.value)}
+                  className="select"
+                >
+                  <option value="all">全部评分</option>
+                  <option value="4.5+">4.5分以上</option>
+                  <option value="4.0+">4.0分以上</option>
+                  <option value="3.5+">3.5分以上</option>
+                  <option value="3.0-">3.0分以下</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">推荐状态</label>
+                <select
+                  value={filters.featured}
+                  onChange={(e) => updateFilter('featured', e.target.value)}
+                  className="select"
+                >
+                  <option value="all">全部工具</option>
+                  <option value="yes">⭐ 已推荐</option>
+                  <option value="no">未推荐</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">创建日期</label>
+                <div className="flex gap-2">
+                  <input
+                    type="date"
+                    value={filters.dateFrom}
+                    onChange={(e) => updateFilter('dateFrom', e.target.value)}
+                    className="input flex-1"
+                  />
+                  <span className="self-center text-text-secondary">至</span>
+                  <input
+                    type="date"
+                    value={filters.dateTo}
+                    onChange={(e) => updateFilter('dateTo', e.target.value)}
+                    className="input flex-1"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 批量操作区域 */}
+        {selectedTools.size > 0 && (
+          <div className="card mb-6 bg-primary-light border-2 border-primary">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <span className="font-medium text-primary">
+                  已选择 {selectedTools.size} 个工具
+                </span>
+                <button
+                  onClick={() => setSelectedTools(new Set())}
+                  className="text-sm text-text-secondary hover:text-text-primary"
+                >
+                  取消选择
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={handleBatchPublish}
+                  className="btn btn-sm btn-primary"
+                >
+                  批量发布
+                </button>
+                <button
+                  onClick={handleBatchArchive}
+                  className="btn btn-sm btn-secondary"
+                >
+                  批量归档
+                </button>
+                <button
+                  onClick={() => setShowBatchActions(!showBatchActions)}
+                  className="btn btn-sm bg-white text-text-primary border border-border"
+                >
+                  修改分类
+                </button>
+                <button
+                  onClick={handleBatchAddToFeatured}
+                  className="btn btn-sm bg-yellow-500 text-white hover:bg-yellow-600"
+                  title="将选中的工具添加到首页推荐专区"
+                >
+                  ⭐ 设为推荐
+                </button>
+                <button
+                  onClick={handleBatchRemoveFromFeatured}
+                  className="btn btn-sm bg-gray-500 text-white hover:bg-gray-600"
+                  title="将选中的工具从推荐专区移除"
+                >
+                  取消推荐
+                </button>
+                <button
+                  onClick={handleBatchDelete}
+                  className="btn btn-sm bg-red-600 text-white hover:bg-red-700"
+                >
+                  批量删除
+                </button>
+              </div>
             </div>
 
-            {/* 状态筛选 */}
-            <div className="w-full md:w-48">
-              <select
-                value={status || 'all'}
-                className="select"
-                onChange={(e) => handleStatusChange(e.target.value)}
-              >
-                <option value="all">全部状态</option>
-                <option value="published">已发布</option>
-                <option value="draft">草稿</option>
-                <option value="archived">已归档</option>
-              </select>
-            </div>
+            {/* 批量修改分类面板 */}
+            {showBatchActions && (
+              <div className="flex items-center gap-4 mt-4 pt-4 border-t border-primary">
+                <label className="text-sm font-medium">目标分类：</label>
+                <select
+                  value={batchCategory}
+                  onChange={(e) => setBatchCategory(e.target.value)}
+                  className="select flex-1"
+                >
+                  <option value="">选择分类</option>
+                  <option value="none">未分类</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name_zh}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleBatchChangeCategory}
+                  disabled={!batchCategory}
+                  className="btn btn-sm btn-primary"
+                >
+                  确认修改
+                </button>
+              </div>
+            )}
+
+            {/* 批量推荐高级选项面板 */}
+            {showFeaturedOptions && (
+              <div className="mt-4 pt-4 border-t border-primary space-y-4">
+                <div className="text-sm font-medium text-primary mb-2">
+                  ⭐ 推荐设置（可选）
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* 推荐标签 */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">推荐标签</label>
+                    <select
+                      value={featuredOptions.tag}
+                      onChange={(e) => setFeaturedOptions(prev => ({ ...prev, tag: e.target.value }))}
+                      className="select w-full"
+                    >
+                      <option value="">无标签</option>
+                      <option value="editors_choice">⭐ 编辑推荐</option>
+                      <option value="trending">🔥 热门推荐</option>
+                      <option value="new_arrival">🆕 新品推荐</option>
+                      <option value="best_value">💎 超值推荐</option>
+                    </select>
+                  </div>
+
+                  {/* 开始时间 */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">开始时间（可选）</label>
+                    <input
+                      type="datetime-local"
+                      value={featuredOptions.start_date}
+                      onChange={(e) => setFeaturedOptions(prev => ({ ...prev, start_date: e.target.value }))}
+                      className="input w-full"
+                      placeholder="留空则立即生效"
+                    />
+                  </div>
+
+                  {/* 结束时间 */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">结束时间（可选）</label>
+                    <input
+                      type="datetime-local"
+                      value={featuredOptions.end_date}
+                      onChange={(e) => setFeaturedOptions(prev => ({ ...prev, end_date: e.target.value }))}
+                      className="input w-full"
+                      placeholder="留空则永久有效"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 justify-end">
+                  <button
+                    onClick={() => {
+                      setShowFeaturedOptions(false);
+                      setFeaturedOptions({ tag: '', start_date: '', end_date: '' });
+                    }}
+                    className="btn btn-sm bg-white text-text-primary border border-border"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={handleConfirmBatchAddToFeatured}
+                    className="btn btn-sm btn-primary"
+                  >
+                    确认添加到推荐
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
+        )}
 
         {/* 工具列表 */}
         <div className="card">
@@ -297,8 +919,17 @@ export default function ToolsPage() {
               <table className="table">
                 <thead>
                   <tr>
+                    <th className="w-12">
+                      <input
+                        type="checkbox"
+                        checked={selectedTools.size === tools.length}
+                        onChange={toggleSelectAll}
+                        className="w-4 h-4"
+                      />
+                    </th>
                     <th>工具名称</th>
                     <th>分类</th>
+                    <th>价格</th>
                     <th>评分</th>
                     <th>状态</th>
                     <th>创建时间</th>
@@ -309,12 +940,32 @@ export default function ToolsPage() {
                   {tools.map((tool) => (
                     <tr key={tool.id}>
                       <td>
-                        <div className="font-medium">{tool.name_zh}</div>
-                        {tool.name_en && (
-                          <div className="text-xs text-text-secondary">
-                            {tool.name_en}
+                        <input
+                          type="checkbox"
+                          checked={selectedTools.has(tool.id)}
+                          onChange={() => toggleSelectTool(tool.id)}
+                          className="w-4 h-4"
+                        />
+                      </td>
+                      <td>
+                        <div className="flex items-center gap-2">
+                          <div>
+                            <div className="font-medium">{tool.name_zh}</div>
+                            {tool.name_en && (
+                              <div className="text-xs text-text-secondary">
+                                {tool.name_en}
+                              </div>
+                            )}
                           </div>
-                        )}
+                          {featuredToolIds.has(tool.id) && (
+                            <span 
+                              className="flex items-center gap-1 px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-full border border-yellow-300"
+                              title="此工具已在首页推荐专区中"
+                            >
+                              ⭐ 推荐
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td>
                         {tool.category ? (
@@ -324,6 +975,17 @@ export default function ToolsPage() {
                         ) : (
                           <span className="text-text-placeholder">未分类</span>
                         )}
+                      </td>
+                      <td>
+                        <span className={`badge ${
+                          tool.pricing_type === 'free'
+                            ? 'badge-success'
+                            : tool.pricing_type === 'freemium'
+                            ? 'badge-warning'
+                            : 'badge-gray'
+                        }`}>
+                          {tool.pricing_type === 'free' ? '免费' : tool.pricing_type === 'freemium' ? '免费试用' : '付费'}
+                        </span>
                       </td>
                       <td>
                         <div className="flex items-center gap-1">
@@ -351,7 +1013,6 @@ export default function ToolsPage() {
                       </td>
                       <td>
                         <div className="flex items-center gap-2">
-                          {/* 快速状态切换按钮 */}
                           <button
                             onClick={() => handleQuickStatusChange(tool.id, tool.status, tool.name_zh)}
                             className={`transition-colors ${
@@ -388,7 +1049,7 @@ export default function ToolsPage() {
                           <button
                             className="text-error hover:text-red-600 transition-colors"
                             onClick={() => handleDelete(tool)}
-                            title="删除工具（包括 R2 文件）"
+                            title="删除工具"
                           >
                             <TrashIcon className="w-5 h-5" />
                           </button>
@@ -431,4 +1092,3 @@ export default function ToolsPage() {
     </AdminLayout>
   );
 }
-

@@ -30,6 +30,7 @@ import {
   AcademicCapIcon,
   BookOpenIcon,
   StarIcon,
+  TagIcon,
   MegaphoneIcon,
   CircleStackIcon,
   Cog6ToothIcon,
@@ -54,13 +55,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: '工具管理', href: '/tools', icon: WrenchScrewdriverIcon },
     { name: '分类/标签', href: '/categories', icon: FolderIcon },
     { name: '评论审核', href: '/comments', icon: ChatBubbleLeftIcon },
-    { name: 'AI快讯', href: '/news', icon: NewspaperIcon },
-    { name: 'AI教程', href: '/tutorials', icon: AcademicCapIcon },
-    { name: 'AI百科', href: '/wiki', icon: BookOpenIcon },
+    { name: '内容管理', href: '/content', icon: NewspaperIcon },
     { name: '推荐专区', href: '/featured', icon: StarIcon },
+    { name: '标签管理', href: '/settings/tags', icon: TagIcon },
     { name: '广告管理', href: '/ads', icon: MegaphoneIcon },
-    { name: '数据库', href: '/database', icon: CircleStackIcon },
-    { name: '爬虫管理', href: '/crawler', icon: Cog6ToothIcon },
+    { name: '爬虫管理', href: '/crawler', icon: SparklesIcon },
+    { name: '系统设置', href: '/settings', icon: Cog6ToothIcon },
   ];
 
   // 处理登出

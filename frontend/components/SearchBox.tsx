@@ -61,9 +61,7 @@ export default function SearchBox({
 
   return (
     <form onSubmit={handleSearch} className={`relative ${className}`}>
-      <div className={`relative flex items-center transition-all ${
-        isFocused ? 'ring-2 ring-primary' : ''
-      }`}>
+      <div className="relative flex items-center">
         {/* 搜索图标 */}
         <div className="absolute left-5 pointer-events-none">
           <MagnifyingGlassIcon className="w-5 h-5 text-text-secondary" />
@@ -77,7 +75,7 @@ export default function SearchBox({
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           placeholder={placeholder}
-          className="w-full h-12 pl-12 pr-5 rounded-full border-2 border-border bg-white text-sm text-text-primary placeholder:text-text-placeholder focus:outline-none focus:border-primary transition-all"
+          className="w-full h-12 pl-12 pr-5 rounded-full border-2 border-border bg-white text-sm text-text-primary placeholder:text-text-placeholder focus:outline-none focus:border-primary transition-colors shadow-sm focus:shadow-md"
           aria-label="搜索"
         />
 

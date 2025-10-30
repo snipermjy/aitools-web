@@ -2,6 +2,8 @@
  * 组件名：ToolCard
  * 文件：ToolCard.tsx
  * 功能：工具卡片组件（紧凑设计）
+ * 作者：AI Assistant
+ * 更新日期：2025-10-29（SEO优化+推荐标签更新）
  * 
  * Props：
  * - tool: Tool - 工具数据
@@ -10,10 +12,17 @@
  * 使用示例：
  * <ToolCard tool={tool} />
  * 
+ * 推荐标签：
+ * - editors_choice: 编辑推荐（⭐ 黄色）
+ * - trending: 热门工具（🔥 红色）
+ * - new_arrival: 最新上线（🆕 绿色）
+ * - best_value: 高性价比（💎 蓝色）
+ * 
  * 注意事项：
- * - Logo 和名称在同一行（48px Logo）
+ * - Logo 和名称在同一行（40px Logo）
  * - 悬停效果：上移+阴影
  * - 紧凑布局设计
+ * - 支持图片懒加载（lazy loading）
  */
 
 'use client';
@@ -26,14 +35,19 @@ import { StarIcon as StarOutlineIcon } from '@heroicons/react/24/outline';
 import { Tool, ToolWithTags } from '@/types/database';
 import { formatRating, formatPricingType } from '@/lib/format';
 import { getR2Url } from '@/lib/r2';
+import { FeaturedTagsConfig, getDefaultTagsConfig } from '@/lib/featuredTags';
 
 interface ToolCardProps {
-  tool: Tool | ToolWithTags;
+  tool: Tool | ToolWithTags & { featured_tag?: string | null };
   compact?: boolean;
+  tagConfigs?: FeaturedTagsConfig; // 可选的标签配置
 }
 
-export default function ToolCard({ tool, compact = true }: ToolCardProps) {
+export default function ToolCard({ tool, compact = true, tagConfigs }: ToolCardProps) {
   const [imageError, setImageError] = useState(false);
+
+  // 使用传入的标签配置，如果没有则使用默认配置
+  const activeTagConfigs = tagConfigs || getDefaultTagsConfig();
 
   // 渲染评分星星
   const renderStars = (rating: number) => {
@@ -60,9 +74,21 @@ export default function ToolCard({ tool, compact = true }: ToolCardProps) {
         .slice(0, 3)
     : [];
 
+  // 获取推荐标签配置
+  const featuredTag = (tool as any).featured_tag;
+  const featuredTagConfig = featuredTag && activeTagConfigs[featuredTag] ? activeTagConfigs[featuredTag] : null;
+
   return (
     <Link href={`/tools/${tool.slug}`}>
-      <div className="bg-white rounded-lg border border-border p-3 card-hover h-full flex flex-col">
+      <div className="bg-white rounded-lg border border-border p-3 card-hover h-full flex flex-col relative">
+        {/* 推荐标签（右上角） */}
+        {featuredTagConfig && (
+          <div className={`absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 text-xs rounded-full border ${featuredTagConfig.color} z-10`}>
+            <span>{featuredTagConfig.emoji}</span>
+            <span className="font-medium">{featuredTagConfig.label}</span>
+          </div>
+        )}
+        
         {/* 顶部区域：Logo + 标题/标签 + 评分 */}
         <div className="flex gap-2.5 mb-2">
           {/* Logo */}
@@ -74,6 +100,7 @@ export default function ToolCard({ tool, compact = true }: ToolCardProps) {
                 width={40}
                 height={40}
                 className="w-full h-full object-cover"
+                loading="lazy"
                 onError={() => setImageError(true)}
               />
             ) : (

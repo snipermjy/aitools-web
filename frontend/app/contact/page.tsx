@@ -8,9 +8,23 @@
 import { Navbar, Footer } from '@/components';
 import { Metadata } from 'next';
 
-export const metadata: Metadata = {
-  title: '联系我们 - AI工具导航',
-};
+// 动态生成metadata以包含canonical
+export async function generateMetadata(): Promise<Metadata> {
+  const { getSiteConfig } = await import('@/lib/config');
+  const siteConfig = await getSiteConfig();
+
+  return {
+    title: `联系我们 | ${siteConfig.site_name}`,
+    description: '如有任何问题、建议或合作意向，欢迎与我们联系。我们期待您的反馈。',
+    alternates: {
+      canonical: `${siteConfig.site_url}/contact`,
+    },
+    robots: {
+      index: true,
+      follow: true,
+    },
+  };
+}
 
 export default function ContactPage() {
   return (

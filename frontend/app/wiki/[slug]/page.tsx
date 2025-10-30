@@ -20,6 +20,21 @@ interface WikiDetailPageProps {
 // 缓存策略：开发环境不缓存，生产环境 60 秒重新验证
 export const revalidate = process.env.NODE_ENV === 'development' ? 0 : 60;
 
+// 预生成百科词条页面（用于SEO优化）
+export async function generateStaticParams() {
+  // 获取所有已发布百科词条用于静态生成
+  const { data: wiki } = await supabase
+    .from('wiki')
+    .select('slug')
+    .eq('status', 'published')
+    .order('published_at', { ascending: false })
+    .limit(50);
+
+  return (wiki || []).map((item) => ({
+    slug: item.slug,
+  }));
+}
+
 export async function generateMetadata({ params }: WikiDetailPageProps): Promise<Metadata> {
   const { data: wiki } = await supabase
     .from('wiki')
@@ -34,13 +49,47 @@ export async function generateMetadata({ params }: WikiDetailPageProps): Promise
     };
   }
 
+  const siteConfig = await (async () => {
+    const { getSiteConfig } = await import('@/lib/config');
+    return await getSiteConfig();
+  })();
+
+  const title = `${wiki.title_zh} - AI百科 | ${siteConfig.site_name}`;
+  let description = wiki.summary_zh || '';
+  if (description.length > 160) {
+    description = description.substring(0, 157) + '...';
+  }
+
   return {
-    title: `${wiki.title_zh} - AI百科`,
-    description: wiki.summary_zh || '',
+    title,
+    description,
+    keywords: ['AI百科', wiki.title_zh, 'AI术语', '人工智能百科', 'AI概念'],
     openGraph: {
-      title: wiki.title_zh,
-      description: wiki.summary_zh || '',
+      type: 'article',
+      locale: 'zh_CN',
+      url: `${siteConfig.site_url}/wiki/${wiki.slug}`,
+      siteName: siteConfig.site_name,
+      title,
+      description,
+      images: wiki.cover_image_url ? [
+        {
+          url: wiki.cover_image_url,
+          width: 1200,
+          height: 630,
+          alt: wiki.title_zh,
+        }
+      ] : [],
+      publishedTime: wiki.published_at,
+      modifiedTime: wiki.updated_at,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
       images: wiki.cover_image_url ? [wiki.cover_image_url] : [],
+    },
+    alternates: {
+      canonical: `${siteConfig.site_url}/wiki/${wiki.slug}`,
     },
   };
 }
@@ -65,8 +114,48 @@ export default async function WikiDetailPage({ params }: WikiDetailPageProps) {
     .order('published_at', { ascending: false })
     .limit(5);
 
+  // 获取站点配置
+  const { getSiteConfig } = await import('@/lib/config');
+  const siteConfig = await getSiteConfig();
+
+  // Article结构化数据（用于SEO）
+  const articleJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: wiki.title_zh,
+    description: wiki.summary_zh || '',
+    image: wiki.cover_image_url ? [wiki.cover_image_url] : [],
+    datePublished: wiki.published_at,
+    dateModified: wiki.updated_at,
+    author: {
+      '@type': 'Organization',
+      name: siteConfig.site_name,
+      url: siteConfig.site_url,
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: siteConfig.site_name,
+      url: siteConfig.site_url,
+    },
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `${siteConfig.site_url}/wiki/${wiki.slug}`,
+    },
+    about: {
+      '@type': 'Thing',
+      name: wiki.title_zh,
+      description: wiki.summary_zh || '',
+    },
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      {/* Article结构化数据 - 用于SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      />
+      
       <Navbar />
 
       <main className="flex-1 pt-16">
@@ -93,6 +182,7 @@ export default async function WikiDetailPage({ params }: WikiDetailPageProps) {
                   width={800}
                   height={450}
                   className="w-full"
+                  priority
                 />
               </div>
             )}

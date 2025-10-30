@@ -20,6 +20,21 @@ interface NewsDetailPageProps {
 // 缓存策略：开发环境不缓存，生产环境 60 秒重新验证
 export const revalidate = process.env.NODE_ENV === 'development' ? 0 : 60;
 
+// 预生成最新快讯页面（用于SEO优化）
+export async function generateStaticParams() {
+  // 获取最新50条快讯用于静态生成
+  const { data: news } = await supabase
+    .from('news')
+    .select('slug')
+    .eq('status', 'published')
+    .order('published_at', { ascending: false })
+    .limit(50);
+
+  return (news || []).map((item) => ({
+    slug: item.slug,
+  }));
+}
+
 export async function generateMetadata({ params }: NewsDetailPageProps): Promise<Metadata> {
   const { data: news } = await supabase
     .from('news')
@@ -34,13 +49,47 @@ export async function generateMetadata({ params }: NewsDetailPageProps): Promise
     };
   }
 
+  const siteConfig = await (async () => {
+    const { getSiteConfig } = await import('@/lib/config');
+    return await getSiteConfig();
+  })();
+
+  const title = `${news.title_zh} - AI快讯 | ${siteConfig.site_name}`;
+  let description = news.summary_zh || '';
+  if (description.length > 160) {
+    description = description.substring(0, 157) + '...';
+  }
+
   return {
-    title: `${news.title_zh} - AI快讯`,
-    description: news.summary_zh || '',
+    title,
+    description,
+    keywords: ['AI快讯', 'AI资讯', 'AI新闻', '人工智能动态'],
     openGraph: {
-      title: news.title_zh,
-      description: news.summary_zh || '',
+      type: 'article',
+      locale: 'zh_CN',
+      url: `${siteConfig.site_url}/news/${news.slug}`,
+      siteName: siteConfig.site_name,
+      title,
+      description,
+      images: news.cover_image_url ? [
+        {
+          url: news.cover_image_url,
+          width: 1200,
+          height: 630,
+          alt: news.title_zh,
+        }
+      ] : [],
+      publishedTime: news.published_at,
+      modifiedTime: news.updated_at,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
       images: news.cover_image_url ? [news.cover_image_url] : [],
+    },
+    alternates: {
+      canonical: `${siteConfig.site_url}/news/${news.slug}`,
     },
   };
 }
@@ -66,8 +115,43 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
     .order('published_at', { ascending: false })
     .limit(5);
 
+  // 获取站点配置
+  const { getSiteConfig } = await import('@/lib/config');
+  const siteConfig = await getSiteConfig();
+
+  // Article结构化数据（用于SEO）
+  const articleJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'NewsArticle',
+    headline: news.title_zh,
+    description: news.summary_zh || '',
+    image: news.cover_image_url ? [news.cover_image_url] : [],
+    datePublished: news.published_at,
+    dateModified: news.updated_at,
+    author: {
+      '@type': 'Organization',
+      name: siteConfig.site_name,
+      url: siteConfig.site_url,
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: siteConfig.site_name,
+      url: siteConfig.site_url,
+    },
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `${siteConfig.site_url}/news/${news.slug}`,
+    },
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      {/* Article结构化数据 - 用于SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      />
+      
       <Navbar />
 
       <main className="flex-1 pt-16">
@@ -97,6 +181,7 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
                   width={800}
                   height={450}
                   className="w-full"
+                  priority
                 />
               </div>
             )}

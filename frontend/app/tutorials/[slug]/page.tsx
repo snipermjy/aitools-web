@@ -20,6 +20,21 @@ interface TutorialDetailPageProps {
 // 缓存策略：开发环境不缓存，生产环境 60 秒重新验证
 export const revalidate = process.env.NODE_ENV === 'development' ? 0 : 60;
 
+// 预生成热门教程页面（用于SEO优化）
+export async function generateStaticParams() {
+  // 获取所有已发布教程用于静态生成
+  const { data: tutorials } = await supabase
+    .from('tutorials')
+    .select('slug')
+    .eq('status', 'published')
+    .order('published_at', { ascending: false })
+    .limit(50);
+
+  return (tutorials || []).map((item) => ({
+    slug: item.slug,
+  }));
+}
+
 export async function generateMetadata({ params }: TutorialDetailPageProps): Promise<Metadata> {
   const { data: tutorial } = await supabase
     .from('tutorials')
@@ -34,13 +49,47 @@ export async function generateMetadata({ params }: TutorialDetailPageProps): Pro
     };
   }
 
+  const siteConfig = await (async () => {
+    const { getSiteConfig } = await import('@/lib/config');
+    return await getSiteConfig();
+  })();
+
+  const title = `${tutorial.title_zh} - AI教程 | ${siteConfig.site_name}`;
+  let description = tutorial.summary_zh || '';
+  if (description.length > 160) {
+    description = description.substring(0, 157) + '...';
+  }
+
   return {
-    title: `${tutorial.title_zh} - AI教程`,
-    description: tutorial.summary_zh || '',
+    title,
+    description,
+    keywords: ['AI教程', 'AI学习', '人工智能教程', 'AI入门'],
     openGraph: {
-      title: tutorial.title_zh,
-      description: tutorial.summary_zh || '',
+      type: 'article',
+      locale: 'zh_CN',
+      url: `${siteConfig.site_url}/tutorials/${tutorial.slug}`,
+      siteName: siteConfig.site_name,
+      title,
+      description,
+      images: tutorial.cover_image_url ? [
+        {
+          url: tutorial.cover_image_url,
+          width: 1200,
+          height: 630,
+          alt: tutorial.title_zh,
+        }
+      ] : [],
+      publishedTime: tutorial.published_at,
+      modifiedTime: tutorial.updated_at,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
       images: tutorial.cover_image_url ? [tutorial.cover_image_url] : [],
+    },
+    alternates: {
+      canonical: `${siteConfig.site_url}/tutorials/${tutorial.slug}`,
     },
   };
 }
@@ -65,8 +114,43 @@ export default async function TutorialDetailPage({ params }: TutorialDetailPageP
     .order('published_at', { ascending: false })
     .limit(5);
 
+  // 获取站点配置
+  const { getSiteConfig } = await import('@/lib/config');
+  const siteConfig = await getSiteConfig();
+
+  // Article结构化数据（用于SEO）
+  const articleJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'TechArticle',
+    headline: tutorial.title_zh,
+    description: tutorial.summary_zh || '',
+    image: tutorial.cover_image_url ? [tutorial.cover_image_url] : [],
+    datePublished: tutorial.published_at,
+    dateModified: tutorial.updated_at,
+    author: {
+      '@type': 'Organization',
+      name: siteConfig.site_name,
+      url: siteConfig.site_url,
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: siteConfig.site_name,
+      url: siteConfig.site_url,
+    },
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `${siteConfig.site_url}/tutorials/${tutorial.slug}`,
+    },
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      {/* Article结构化数据 - 用于SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      />
+      
       <Navbar />
 
       <main className="flex-1 pt-16">
@@ -93,6 +177,7 @@ export default async function TutorialDetailPage({ params }: TutorialDetailPageP
                   width={800}
                   height={450}
                   className="w-full"
+                  priority
                 />
               </div>
             )}
