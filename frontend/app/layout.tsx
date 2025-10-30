@@ -101,9 +101,9 @@ export default async function RootLayout({
         )}
       </head>
       <body className="antialiased">
-        {featuresConfig.enable_google_analytics && (
+        {featuresConfig.enable_google_analytics && featuresConfig.google_analytics_id && (
           <Suspense fallback={null}>
-            <GoogleAnalytics />
+            <GoogleAnalytics gaId={featuresConfig.google_analytics_id} />
           </Suspense>
         )}
         {children}

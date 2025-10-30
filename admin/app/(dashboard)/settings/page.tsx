@@ -74,6 +74,7 @@ interface FeaturesSettings {
   featured_tools_count: number;
   tools_per_page: number;
   enable_google_analytics: boolean;
+  google_analytics_id?: string;
 }
 
 interface SEOSettings {
@@ -209,6 +210,7 @@ export default function SettingsPage() {
     featured_tools_count: 6,
     tools_per_page: 20,
     enable_google_analytics: false,
+    google_analytics_id: '',
   });
 
   const [seoSettings, setSEOSettings] = useState<SEOSettings>({
@@ -833,6 +835,26 @@ export default function SettingsPage() {
                       />
                     </label>
                   </div>
+
+                  {/* Google Analytics ID 输入框 */}
+                  {featuresSettings.enable_google_analytics && (
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium mb-2">
+                        Google Analytics 衡量ID
+                        <span className="text-gray-500 text-xs ml-2">(格式: G-XXXXXXXXXX)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={featuresSettings.google_analytics_id || ''}
+                        onChange={(e) => setFeaturesSettings({ ...featuresSettings, google_analytics_id: e.target.value })}
+                        placeholder="G-XXXXXXXXXX"
+                        className="input w-full"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        从 Google Analytics 数据流详情页面获取衡量ID
+                      </p>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                     <div>

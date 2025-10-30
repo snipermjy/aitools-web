@@ -320,6 +320,7 @@ export async function getFeaturesConfig(): Promise<FeaturesConfig> {
     featured_tools_count: 6,
     tools_per_page: 20,
     enable_google_analytics: false,
+    google_analytics_id: '',
   };
 
   return getConfigFromDB('features', defaultConfig);
