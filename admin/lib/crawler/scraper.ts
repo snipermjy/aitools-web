@@ -20,7 +20,7 @@ let browser: Browser | null = null;
  */
 async function getBrowser(): Promise<Browser> {
   if (!browser) {
-    browser = await puppeteer.launch({
+    const launchOptions: any = {
       headless: 'new',
       args: [
         '--no-sandbox',
@@ -28,7 +28,14 @@ async function getBrowser(): Promise<Browser> {
         '--disable-dev-shm-usage',
         '--disable-gpu',
       ],
-    });
+    };
+    
+    // 如果设置了Chrome路径，使用指定的Chrome
+    if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+      launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    }
+    
+    browser = await puppeteer.launch(launchOptions);
   }
   return browser;
 }

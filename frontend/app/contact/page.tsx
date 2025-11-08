@@ -47,7 +47,7 @@ export default function ContactPage() {
                   如有任何问题、建议或合作意向，欢迎发送邮件至：
                 </p>
                 <p className="text-primary mt-2">
-                  contact@example.com
+                2285542688@qq.com
                 </p>
               </div>
 

@@ -139,9 +139,9 @@ export async function getSiteConfig(): Promise<SiteConfig> {
   const defaultConfig: SiteConfig = {
     site_name: 'AI工具导航',
     site_description: '发现最好的AI工具，提升工作效率',
-    site_url: 'https://example.com',
+    site_url: 'https://ai-bot.ink',
     site_logo: '',
-    contact_email: 'contact@example.com',
+    contact_email: '2285542688@qq.com',
     icp_number: '',
     footer_text: '',
     social_links: {},
