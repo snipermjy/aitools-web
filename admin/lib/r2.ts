@@ -36,6 +36,54 @@ const r2Client = R2_ACCOUNT_ID ? new S3Client({
 }) : null;
 
 /**
+ * 检测图片的真实 MIME 类型
+ */
+function detectImageMimeType(buffer: Buffer): string {
+  // 检查文件头（magic bytes）
+  if (buffer.length < 4) return 'image/png';
+  
+  const header = buffer.slice(0, 4).toString('hex');
+  
+  // PNG: 89 50 4E 47
+  if (header.startsWith('89504e47')) return 'image/png';
+  
+  // JPEG: FF D8 FF
+  if (header.startsWith('ffd8ff')) return 'image/jpeg';
+  
+  // GIF: 47 49 46 38
+  if (header.startsWith('47494638')) return 'image/gif';
+  
+  // WebP: 52 49 46 46 ... 57 45 42 50
+  if (header.startsWith('52494646') && buffer.slice(8, 12).toString('hex') === '57454250') {
+    return 'image/webp';
+  }
+  
+  // SVG: < ? x m l 或 < s v g
+  const text = buffer.slice(0, 100).toString('utf8').toLowerCase();
+  if (text.includes('<svg') || text.includes('<?xml')) {
+    return 'image/svg+xml';
+  }
+  
+  // 默认返回 PNG
+  return 'image/png';
+}
+
+/**
+ * 根据 MIME 类型获取文件扩展名
+ */
+function getExtensionFromMimeType(mimeType: string): string {
+  const map: Record<string, string> = {
+    'image/png': 'png',
+    'image/jpeg': 'jpg',
+    'image/jpg': 'jpg',
+    'image/gif': 'gif',
+    'image/webp': 'webp',
+    'image/svg+xml': 'svg',
+  };
+  return map[mimeType] || 'png';
+}
+
+/**
  * 上传图片到 R2
  * @param buffer 图片 Buffer
  * @param filename 文件名（可选，自动生成）
@@ -51,8 +99,9 @@ export async function uploadToR2(
     throw new Error('R2 配置不完整，无法上传图片');
   }
 
-  // 生成文件名
-  const ext = filename?.split('.').pop() || 'png';
+  // 检测真实的 MIME 类型
+  const mimeType = detectImageMimeType(buffer);
+  const ext = filename?.split('.').pop() || getExtensionFromMimeType(mimeType);
   const key = `${folder}/${Date.now()}-${randomUUID()}.${ext}`;
 
   // 上传到 R2
@@ -60,7 +109,7 @@ export async function uploadToR2(
     Bucket: R2_BUCKET_NAME,
     Key: key,
     Body: buffer,
-    ContentType: `image/${ext}`,
+    ContentType: mimeType, // 使用检测到的真实 MIME 类型
   });
 
   await r2Client.send(command);
