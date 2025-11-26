@@ -22,6 +22,7 @@ export interface AIAnalysisResult {
   name_zh: string;
   name_en?: string;
   summary_zh: string;
+  summary_short: string; // 卡片简短描述（直接说明功能，不要"XX是一款"）
   description_zh: string;
   categories: string[];
   tags: string[];
@@ -97,6 +98,7 @@ ${htmlContent ? `\n网站内容片段:\n${htmlContent.substring(0, 2000)}...` : 
   "name_zh": "工具的中文名称",
   "name_en": "工具的英文名称（如果有）",
   "summary_zh": "一句话简短描述（20-50字）",
+  "summary_short": "卡片简短描述（30-50字，直接说明工具功能，不要写"XX是一款"）",
   "description_zh": "详细描述，必须500-800字左右，内容要充实完整",
   "categories": ["从下方分类列表中选择一个"],
   "tags": ["标签1", "标签2", "标签3"],
@@ -109,8 +111,9 @@ ${htmlContent ? `\n网站内容片段:\n${htmlContent.substring(0, 2000)}...` : 
 
 ⚠️ 重要提示：
 1. name_zh 必须从上方元数据中提取，不要翻译品牌名！
-2. description_zh 字段必须生成 500-800 字的详细内容
-3. tags 严格限制 3-5 个，要具体且有价值
+2. summary_short 必须直接说明功能，例如："将文本转换为精美图像"，而不是"Midjourney是一款AI图像生成工具"
+3. description_zh 字段必须生成 500-800 字的详细内容
+4. tags 严格限制 3-5 个，要具体且有价值
 
 可选的分类列表（必须完全匹配，包括"AI"前缀）：
 ${categoryList}

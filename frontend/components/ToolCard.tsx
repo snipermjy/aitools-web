@@ -89,74 +89,36 @@ export default function ToolCard({ tool, compact = true, tagConfigs }: ToolCardP
           </div>
         )}
         
-        {/* 顶部区域：Logo + 标题/标签 + 评分 */}
-        <div className="flex gap-2.5 mb-2">
+        {/* Logo + 标题 */}
+        <div className="flex items-center gap-3 mb-3">
           {/* Logo */}
-          <div className="flex-shrink-0 w-10 h-10 rounded-lg overflow-hidden bg-background">
+          <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-background">
             {tool.logo_url && !imageError && getR2Url(tool.logo_url) ? (
               <Image
                 src={getR2Url(tool.logo_url)!}
                 alt={tool.name_zh}
-                width={40}
-                height={40}
+                width={48}
+                height={48}
                 className="w-full h-full object-cover"
                 loading="lazy"
                 onError={() => setImageError(true)}
               />
             ) : (
-              <div className="w-full h-full gradient-bg flex items-center justify-center text-white font-bold text-base">
+              <div className="w-full h-full gradient-bg flex items-center justify-center text-white font-bold text-lg">
                 {tool.name_zh[0]}
               </div>
             )}
           </div>
 
-          {/* 中间：标题 + AI标签（垂直排列，高度与Logo对齐） */}
-          <div className="flex-1 flex flex-col justify-between min-w-0 h-10">
-            {/* 第一行：工具名称 + 评分 */}
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-text-primary line-clamp-1 leading-tight flex-1">
-                {tool.name_zh}
-              </h3>
-              {/* 评分 */}
-              {tool.rating_count > 0 && (
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <div className="flex items-center gap-0.5">
-                    {renderStars(tool.rating_avg)}
-                  </div>
-                  <span className="text-xs text-text-secondary whitespace-nowrap">
-                    {formatRating(tool.rating_avg)} ({tool.rating_count})
-                  </span>
-                </div>
-              )}
-            </div>
-            
-            {/* 第二行：AI标签（单行显示，不换行） */}
-            {aiTags.length > 0 ? (
-              <div className="flex items-center gap-1 overflow-hidden">
-                {aiTags.map((tag, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 whitespace-nowrap flex-shrink-0"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <div className="flex items-center gap-1">
-                {tool.require_login === false && (
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-50 text-gray-700 whitespace-nowrap">
-                    无需登录
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
+          {/* 标题 */}
+          <h3 className="text-base font-bold text-text-primary line-clamp-1 leading-tight flex-1">
+            {tool.name_zh}
+          </h3>
         </div>
 
-        {/* 简介 */}
-        <p className="text-sm text-text-secondary line-clamp-2 flex-1 leading-relaxed">
-          {tool.summary_zh || tool.description_zh || '暂无描述'}
+        {/* 简短描述（一句话） */}
+        <p className="text-sm text-text-secondary line-clamp-2 leading-relaxed">
+          {tool.summary_short || tool.summary_zh || tool.description_zh || '暂无描述'}
         </p>
       </div>
     </Link>

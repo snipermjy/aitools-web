@@ -604,91 +604,114 @@ export async function scrapeToolDomains(
     // 初始等待
     await page.waitForTimeout(3000);
 
-    console.log(`   📜 滚动页面触发懒加载...`);
+    console.log(`   📜 智能加载页面内容（自适应策略）...`);
     
-    // 滚动页面多次，触发懒加载（增强版）
-    await page.evaluate(async () => {
-      await new Promise<void>((resolve) => {
-        let totalHeight = 0;
-        let scrollCount = 0;
-        const maxScrolls = 20; // 增加到 20 次滚动
-        const distance = 500; // 每次滚动 500px
-
-        const timer = setInterval(() => {
-          const scrollHeight = document.body.scrollHeight;
-          window.scrollBy(0, distance);
-          totalHeight += distance;
-          scrollCount++;
-
-          // 到达底部或达到最大滚动次数
-          if (totalHeight >= scrollHeight || scrollCount >= maxScrolls) {
-            clearInterval(timer);
-            // 滚动回顶部
-            window.scrollTo(0, 0);
-            setTimeout(() => resolve(), 1000);
-          }
-        }, 200); // 每 200ms 滚动一次，给内容加载时间
-      });
-    });
-
-    console.log(`   ⏳ 等待动态内容加载完成...`);
+    // 自适应加载策略：循环滚动直到内容不再增加
+    let previousLinkCount = 0;
+    let stableCount = 0; // 连续稳定次数
+    const maxAttempts = 5; // 最多尝试 5 轮
     
-    // 等待动态内容加载（增加到 5 秒）
-    await page.waitForTimeout(5000);
-
-    // 尝试点击"加载更多"按钮（如果存在）
-    console.log(`   🔘 检测"加载更多"按钮...`);
-    const loadMoreClicked = await page.evaluate(() => {
-      // 常见的"加载更多"按钮文本
-      const loadMoreTexts = [
-        'load more',
-        'show more',
-        'view more',
-        'see more',
-        '加载更多',
-        '查看更多',
-        '显示更多',
-        'more',
-      ];
-
-      const buttons = Array.from(document.querySelectorAll('button, a, div[role="button"]'));
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      console.log(`   🔄 第 ${attempt}/${maxAttempts} 轮加载...`);
       
-      for (const button of buttons) {
-        const text = (button.textContent || '').toLowerCase().trim();
-        if (loadMoreTexts.some(t => text.includes(t))) {
-          (button as HTMLElement).click();
-          return true;
-        }
-      }
-      return false;
-    });
-
-    if (loadMoreClicked) {
-      console.log(`   ✅ 点击了"加载更多"按钮，等待新内容...`);
-      await page.waitForTimeout(3000);
-      
-      // 再次滚动，加载新内容
+      // 1. 滚动页面
       await page.evaluate(async () => {
         await new Promise<void>((resolve) => {
           let scrollCount = 0;
-          const maxScrolls = 10;
+          const maxScrolls = 15; // 每轮滚动 15 次
           const distance = 500;
 
           const timer = setInterval(() => {
+            const scrollHeight = document.body.scrollHeight;
             window.scrollBy(0, distance);
             scrollCount++;
 
-            if (scrollCount >= maxScrolls) {
+            if (scrollCount >= maxScrolls || window.scrollY + window.innerHeight >= scrollHeight) {
               clearInterval(timer);
               window.scrollTo(0, 0);
-              setTimeout(() => resolve(), 1000);
+              setTimeout(() => resolve(), 500);
             }
-          }, 200);
+          }, 150);
         });
       });
       
+      // 2. 等待内容加载
       await page.waitForTimeout(2000);
+      
+      // 3. 统计当前链接数量
+      const currentLinkCount = await page.evaluate(() => {
+        return document.querySelectorAll('a[href]').length;
+      });
+      
+      console.log(`      当前链接数: ${currentLinkCount} (上一轮: ${previousLinkCount})`);
+      
+      // 4. 判断是否有新内容
+      if (currentLinkCount === previousLinkCount) {
+        stableCount++;
+        console.log(`      ⚠️ 链接数量未增加 (稳定次数: ${stableCount}/2)`);
+        
+        // 如果连续 2 次没有新内容，尝试点击"加载更多"按钮
+        if (stableCount === 1) {
+          console.log(`      🔘 尝试查找并点击"加载更多"按钮...`);
+          const clicked = await page.evaluate(() => {
+            const loadMoreTexts = [
+              'load more', 'show more', 'view more', 'see more',
+              '加载更多', '查看更多', '显示更多', 'more', 'next',
+            ];
+
+            const clickableElements = Array.from(
+              document.querySelectorAll('button, a, div[role="button"], span[role="button"]')
+            );
+            
+            for (const el of clickableElements) {
+              const text = (el.textContent || '').toLowerCase().trim();
+              const ariaLabel = el.getAttribute('aria-label')?.toLowerCase() || '';
+              
+              if (loadMoreTexts.some(t => text.includes(t) || ariaLabel.includes(t))) {
+                // 检查元素是否可见
+                const rect = el.getBoundingClientRect();
+                const isVisible = rect.width > 0 && rect.height > 0;
+                
+                if (isVisible) {
+                  (el as HTMLElement).click();
+                  return true;
+                }
+              }
+            }
+            return false;
+          });
+          
+          if (clicked) {
+            console.log(`      ✅ 已点击按钮，等待新内容加载...`);
+            await page.waitForTimeout(3000);
+            stableCount = 0; // 重置稳定计数
+            continue; // 重新开始这一轮
+          } else {
+            console.log(`      ℹ️ 未找到"加载更多"按钮`);
+          }
+        }
+        
+        // 如果连续 2 次稳定，认为已经加载完成
+        if (stableCount >= 2) {
+          console.log(`   ✅ 内容已完全加载（连续 ${stableCount} 次无变化）`);
+          break;
+        }
+      } else {
+        // 有新内容，重置稳定计数
+        stableCount = 0;
+        console.log(`      ✅ 新增 ${currentLinkCount - previousLinkCount} 个链接`);
+      }
+      
+      previousLinkCount = currentLinkCount;
+      
+      // 如果是最后一轮，额外等待
+      if (attempt === maxAttempts) {
+        console.log(`   ⏳ 最后一轮，额外等待 3 秒...`);
+        await page.waitForTimeout(3000);
+      }
     }
+    
+    console.log(`   ✅ 智能加载完成，最终链接数: ${previousLinkCount}`);
 
     console.log(`   🔍 正在提取工具链接...`);
 

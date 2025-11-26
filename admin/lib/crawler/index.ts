@@ -486,6 +486,7 @@ export async function crawlSingleTool(
           official_url: url, // 注意：数据库字段是 official_url，不是 website_url
           logo_url: logoUrl,
           summary_zh: aiResult.summary_zh,
+          summary_short: aiResult.summary_short, // 卡片简短描述
           description_zh: aiResult.description_zh,
           screenshot_url: screenshotUrl, // 使用之前上传的截图 URL
           features: aiResult.features_zh || [], // 主要功能列表（JSONB）

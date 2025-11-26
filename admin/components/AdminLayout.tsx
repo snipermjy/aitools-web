@@ -20,21 +20,17 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   HomeIcon,
   WrenchScrewdriverIcon,
   FolderIcon,
   ChatBubbleLeftIcon,
   NewspaperIcon,
-  AcademicCapIcon,
-  BookOpenIcon,
   StarIcon,
   TagIcon,
   MegaphoneIcon,
-  CircleStackIcon,
   Cog6ToothIcon,
-  ArrowLeftOnRectangleIcon,
   Bars3Icon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
@@ -46,7 +42,6 @@ interface AdminLayoutProps {
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // 导航菜单
@@ -63,16 +58,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: '系统设置', href: '/settings', icon: Cog6ToothIcon },
   ];
 
-  // 处理登出
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/logout', { method: 'POST' });
-      router.push('/login');
-      router.refresh();
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-  };
+  // 登出功能已移除（本地运行无需登录）
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -135,15 +121,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             </div>
           </nav>
 
-          {/* 登出按钮 */}
+          {/* 版本信息 */}
           <div className="p-4 border-t border-sidebar-hover">
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-sidebar-hover hover:text-white transition-colors"
-            >
-              <ArrowLeftOnRectangleIcon className="w-5 h-5" />
-              登出
-            </button>
+            <div className="text-xs text-gray-400 text-center">
+              本地运行模式
+            </div>
           </div>
         </div>
       </aside>
@@ -161,7 +143,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
           <div className="flex items-center gap-4">
             <span className="text-sm text-text-secondary">
-              管理员：admin
+              本地管理模式
             </span>
           </div>
         </header>

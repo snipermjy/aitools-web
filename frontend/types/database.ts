@@ -17,6 +17,7 @@ export interface Tool {
   slug: string;
   summary_zh: string | null;
   summary_en: string | null;
+  summary_short: string | null; // 卡片简短描述（一句话）
   description_zh: string | null;
   description_en: string | null;
   features: string[];
