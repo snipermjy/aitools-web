@@ -111,7 +111,7 @@ export function normalizeUrl(url: string): string {
 export async function scrapeWebsite(url: string): Promise<{
   html: string;
   title: string;
-  description?: string;
+  description?: string | null;
   metadata?: {
     ogTitle?: string;
     ogDescription?: string;
@@ -971,21 +971,32 @@ export async function extractLogoUrl(url: string, htmlContent?: string): Promise
 
     // 使用正则表达式提取 Logo（优先级从高到低）
     const logoPatterns = [
-      // Apple touch icon（通常是高质量图标）
+      // Apple touch icon（最优先，通常是真正的 Logo）
       /<link[^>]+rel=["']apple-touch-icon["'][^>]+href=["']([^"']+)["']/i,
       /<link[^>]+href=["']([^"']+)["'][^>]+rel=["']apple-touch-icon["']/i,
-      // OG image（社交媒体图片，通常质量高）
-      /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i,
-      /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i,
-      // 标准 favicon（各种尺寸）
+      /<link[^>]+rel=["']apple-touch-icon-precomposed["'][^>]+href=["']([^"']+)["']/i,
+      // 标准 favicon（各种尺寸，优先大尺寸）
+      /<link[^>]+rel=["']icon["'][^>]+sizes=["']512x512["'][^>]+href=["']([^"']+)["']/i,
+      /<link[^>]+rel=["']icon["'][^>]+sizes=["']256x256["'][^>]+href=["']([^"']+)["']/i,
       /<link[^>]+rel=["']icon["'][^>]+sizes=["']192x192["'][^>]+href=["']([^"']+)["']/i,
       /<link[^>]+rel=["']icon["'][^>]+sizes=["']180x180["'][^>]+href=["']([^"']+)["']/i,
       /<link[^>]+rel=["']icon["'][^>]+sizes=["']96x96["'][^>]+href=["']([^"']+)["']/i,
+      /<link[^>]+rel=["']icon["'][^>]+sizes=["']32x32["'][^>]+href=["']([^"']+)["']/i,
       /<link[^>]+rel=["']icon["'][^>]+href=["']([^"']+)["']/i,
       /<link[^>]+href=["']([^"']+)["'][^>]+rel=["']icon["']/i,
       // Shortcut icon
       /<link[^>]+rel=["']shortcut icon["'][^>]+href=["']([^"']+)["']/i,
       /<link[^>]+href=["']([^"']+)["'][^>]+rel=["']shortcut icon["']/i,
+      // Mask icon (Safari)
+      /<link[^>]+rel=["']mask-icon["'][^>]+href=["']([^"']+)["']/i,
+      // Fluid icon
+      /<link[^>]+rel=["']fluid-icon["'][^>]+href=["']([^"']+)["']/i,
+      // OG image（降低优先级，因为通常是截图而非 Logo）
+      /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i,
+      /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i,
+      // Twitter image（最低优先级）
+      /<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i,
+      /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i,
     ];
 
     const candidates: string[] = [];

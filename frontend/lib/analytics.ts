@@ -23,7 +23,7 @@ export const isGAEnabled = () => {
 
 // 页面浏览事件
 export const pageview = (url: string) => {
-  if (!isGAEnabled()) return;
+  if (!isGAEnabled() || !window.gtag) return;
 
   try {
     window.gtag('config', GA_TRACKING_ID, {
@@ -41,7 +41,7 @@ export const event = ({ action, category, label, value }: {
   label?: string;
   value?: number;
 }) => {
-  if (!isGAEnabled()) return;
+  if (!isGAEnabled() || !window.gtag) return;
 
   try {
     window.gtag('event', action, {
@@ -101,10 +101,10 @@ export const trackOutboundLink = (url: string, label?: string) => {
   });
 };
 
-// TypeScript 声明
+// TypeScript 声明（使用类型扩展避免冲突）
 declare global {
   interface Window {
-    gtag: (...args: any[]) => void;
+    gtag?: (...args: any[]) => void;
   }
 }
 

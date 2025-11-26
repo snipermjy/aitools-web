@@ -90,21 +90,21 @@ export default function ToolCard({ tool, compact = true, tagConfigs }: ToolCardP
         )}
         
         {/* Logo + 标题 */}
-        <div className="flex items-center gap-3 mb-3">
-          {/* Logo */}
-          <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-background">
+        <div className="flex items-center gap-2.5 mb-2">
+          {/* Logo - 圆形，缩小尺寸 */}
+          <div className="flex-shrink-0 w-9 h-9 rounded-full overflow-hidden bg-background">
             {tool.logo_url && !imageError && getR2Url(tool.logo_url) ? (
               <Image
                 src={getR2Url(tool.logo_url)!}
                 alt={tool.name_zh}
-                width={48}
-                height={48}
+                width={36}
+                height={36}
                 className="w-full h-full object-cover"
                 loading="lazy"
                 onError={() => setImageError(true)}
               />
             ) : (
-              <div className="w-full h-full gradient-bg flex items-center justify-center text-white font-bold text-lg">
+              <div className="w-full h-full gradient-bg flex items-center justify-center text-white font-bold text-sm">
                 {tool.name_zh[0]}
               </div>
             )}
@@ -117,7 +117,7 @@ export default function ToolCard({ tool, compact = true, tagConfigs }: ToolCardP
         </div>
 
         {/* 简短描述（一句话） */}
-        <p className="text-sm text-text-secondary line-clamp-2 leading-relaxed">
+        <p className="text-sm text-text-secondary line-clamp-2 leading-snug">
           {tool.summary_short || tool.summary_zh || tool.description_zh || '暂无描述'}
         </p>
       </div>

@@ -33,7 +33,7 @@ export default function GoogleAnalytics({ gaId }: GoogleAnalyticsProps) {
 
   // 追踪页面浏览
   useEffect(() => {
-    if (!gaId || typeof window === 'undefined') return;
+    if (!gaId || typeof window === 'undefined' || !window.gtag) return;
 
     const url = pathname + searchParams.toString();
     
@@ -76,10 +76,10 @@ export default function GoogleAnalytics({ gaId }: GoogleAnalyticsProps) {
   );
 }
 
-// TypeScript 声明
-declare global {
-  interface Window {
-    gtag: (...args: any[]) => void;
-  }
-}
+// TypeScript 声明（已在 analytics.ts 中声明，此处移除避免冲突）
+// declare global {
+//   interface Window {
+//     gtag?: (...args: any[]) => void;
+//   }
+// }
 
