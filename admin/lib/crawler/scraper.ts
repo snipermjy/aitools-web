@@ -568,7 +568,7 @@ async function autoScroll(page: Page): Promise<void> {
 }
 
 /**
- * 从目标导航站爬取工具域名列表
+ * 从目标导航站爬取工具域名列表（增强版 - 支持懒加载和动态内容）
  * @param targetUrl 目标导航站 URL
  * @param selector CSS 选择器（用于定位链接，暂不使用）
  * @returns 域名列表
@@ -590,13 +590,105 @@ export async function scrapeToolDomains(
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     );
 
+    // 设置更大的视口，确保能看到更多内容
+    await page.setViewport({
+      width: 1920,
+      height: 1080,
+    });
+
     await page.goto(targetUrl, {
       waitUntil: 'networkidle2',
       timeout: 30000,
     });
 
-    // 等待页面完全加载
-    await page.waitForTimeout(2000);
+    // 初始等待
+    await page.waitForTimeout(3000);
+
+    console.log(`   📜 滚动页面触发懒加载...`);
+    
+    // 滚动页面多次，触发懒加载（增强版）
+    await page.evaluate(async () => {
+      await new Promise<void>((resolve) => {
+        let totalHeight = 0;
+        let scrollCount = 0;
+        const maxScrolls = 20; // 增加到 20 次滚动
+        const distance = 500; // 每次滚动 500px
+
+        const timer = setInterval(() => {
+          const scrollHeight = document.body.scrollHeight;
+          window.scrollBy(0, distance);
+          totalHeight += distance;
+          scrollCount++;
+
+          // 到达底部或达到最大滚动次数
+          if (totalHeight >= scrollHeight || scrollCount >= maxScrolls) {
+            clearInterval(timer);
+            // 滚动回顶部
+            window.scrollTo(0, 0);
+            setTimeout(() => resolve(), 1000);
+          }
+        }, 200); // 每 200ms 滚动一次，给内容加载时间
+      });
+    });
+
+    console.log(`   ⏳ 等待动态内容加载完成...`);
+    
+    // 等待动态内容加载（增加到 5 秒）
+    await page.waitForTimeout(5000);
+
+    // 尝试点击"加载更多"按钮（如果存在）
+    console.log(`   🔘 检测"加载更多"按钮...`);
+    const loadMoreClicked = await page.evaluate(() => {
+      // 常见的"加载更多"按钮文本
+      const loadMoreTexts = [
+        'load more',
+        'show more',
+        'view more',
+        'see more',
+        '加载更多',
+        '查看更多',
+        '显示更多',
+        'more',
+      ];
+
+      const buttons = Array.from(document.querySelectorAll('button, a, div[role="button"]'));
+      
+      for (const button of buttons) {
+        const text = (button.textContent || '').toLowerCase().trim();
+        if (loadMoreTexts.some(t => text.includes(t))) {
+          (button as HTMLElement).click();
+          return true;
+        }
+      }
+      return false;
+    });
+
+    if (loadMoreClicked) {
+      console.log(`   ✅ 点击了"加载更多"按钮，等待新内容...`);
+      await page.waitForTimeout(3000);
+      
+      // 再次滚动，加载新内容
+      await page.evaluate(async () => {
+        await new Promise<void>((resolve) => {
+          let scrollCount = 0;
+          const maxScrolls = 10;
+          const distance = 500;
+
+          const timer = setInterval(() => {
+            window.scrollBy(0, distance);
+            scrollCount++;
+
+            if (scrollCount >= maxScrolls) {
+              clearInterval(timer);
+              window.scrollTo(0, 0);
+              setTimeout(() => resolve(), 1000);
+            }
+          }, 200);
+        });
+      });
+      
+      await page.waitForTimeout(2000);
+    }
 
     console.log(`   🔍 正在提取工具链接...`);
 

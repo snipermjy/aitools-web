@@ -161,13 +161,17 @@ export default async function HomePage() {
     .order('published_at', { ascending: false })
     .limit(10);
 
-  // 为所有一级分类获取工具（每个分类5个）+ 获取最新工具时间用于排序
+  // 性能优化：一次性查询所有一级分类的工具，避免 N+1 查询问题
   const categoryToolsMap: Record<string, any[]> = {};
   const categoryLatestTimeMap: Record<string, string> = {};
   const topCategories = categories?.filter(c => !c.parent_id) || [];
   
-  for (const category of topCategories) {
-    const { data: categoryTools } = await supabase
+  // 获取所有一级分类的 ID
+  const topCategoryIds = topCategories.map(c => c.id);
+  
+  if (topCategoryIds.length > 0) {
+    // 一次性查询所有工具（优化：从 N 次查询减少到 1 次）
+    const { data: allCategoryTools } = await supabase
       .from('tools')
       .select(`
         *,
@@ -175,19 +179,30 @@ export default async function HomePage() {
           tags (*)
         )
       `)
-      .eq('category_id', category.id)
+      .in('category_id', topCategoryIds)
       .eq('status', 'published')
-      .order('rating_avg', { ascending: false })
-      .limit(24); // 4行 × 6列 = 24个工具
+      .order('rating_avg', { ascending: false });
     
-    if (categoryTools && categoryTools.length > 0) {
-      categoryToolsMap[category.id] = categoryTools;
-      
-      // 获取该分类最新工具的创建时间（用于排序）
-      const latestTool = categoryTools.reduce((latest, tool) => {
-        return new Date(tool.created_at) > new Date(latest.created_at) ? tool : latest;
-      }, categoryTools[0]);
-      categoryLatestTimeMap[category.id] = latestTool.created_at;
+    // 在内存中按分类分组，每个分类最多 24 个工具
+    if (allCategoryTools) {
+      for (const tool of allCategoryTools) {
+        const categoryId = tool.category_id;
+        
+        if (!categoryToolsMap[categoryId]) {
+          categoryToolsMap[categoryId] = [];
+        }
+        
+        // 每个分类最多 24 个工具
+        if (categoryToolsMap[categoryId].length < 24) {
+          categoryToolsMap[categoryId].push(tool);
+        }
+        
+        // 记录最新工具时间
+        if (!categoryLatestTimeMap[categoryId] || 
+            new Date(tool.created_at) > new Date(categoryLatestTimeMap[categoryId])) {
+          categoryLatestTimeMap[categoryId] = tool.created_at;
+        }
+      }
     }
   }
 

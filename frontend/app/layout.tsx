@@ -16,6 +16,7 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import './globals.css';
 import GoogleAnalytics from '@/components/GoogleAnalytics';
+import { PerformanceMonitor } from '@/components/PerformanceMonitor';
 import { getSiteConfig, getSEOConfig, getFeaturesConfig } from '@/lib/config';
 
 // 动态生成metadata
@@ -106,6 +107,8 @@ export default async function RootLayout({
             <GoogleAnalytics gaId={featuresConfig.google_analytics_id} />
           </Suspense>
         )}
+        {/* 性能监控 - 仅生产环境 */}
+        <PerformanceMonitor />
         {children}
       </body>
     </html>
