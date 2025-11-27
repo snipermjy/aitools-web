@@ -16,6 +16,8 @@ const nextConfig = {
   
   // 图片优化配置
   images: {
+    // 禁用 Vercel Image Optimization（避免超出免费限额）
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
@@ -46,13 +48,6 @@ const nextConfig = {
         hostname: 'cdn.ai-bot.ink', // R2 自定义域名
       },
     ],
-    // 性能优化：启用现代图片格式
-    formats: ['image/webp', 'image/avif'],
-    // 设备尺寸优化
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    // 图片缓存时间（秒）
-    minimumCacheTTL: 86400, // 24小时
     // 禁用静态导入（减少构建时间）
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
