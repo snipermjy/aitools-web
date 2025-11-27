@@ -577,6 +577,9 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
                           <div className="font-medium text-sm md:text-base truncate">
                             {relatedTool.name_zh}
                           </div>
+                          <div className="text-xs text-text-secondary line-clamp-2 mt-1">
+                            {relatedTool.summary_zh || relatedTool.description_zh}
+                          </div>
                         </div>
                       </a>
                     ))}
