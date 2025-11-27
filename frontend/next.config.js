@@ -41,6 +41,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'aitools-web.r2.dev',
       },
+      {
+        protocol: 'https',
+        hostname: 'cdn.ai-bot.ink', // R2 自定义域名
+      },
     ],
     // 性能优化：启用现代图片格式
     formats: ['image/webp', 'image/avif'],
