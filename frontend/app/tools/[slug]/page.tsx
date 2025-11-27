@@ -275,6 +275,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
                     width={40}
                     height={40}
                     className="w-full h-full object-cover"
+                    unoptimized
                     priority
                   />
                 ) : (
@@ -350,6 +351,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
                       width={800}
                       height={450}
                       className="w-full"
+                      unoptimized
                       loading="lazy"
                     />
                   </div>
@@ -562,6 +564,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
                               width={40}
                               height={40}
                               className="w-full h-full object-cover"
+                              unoptimized
                               loading="lazy"
                             />
                           ) : (

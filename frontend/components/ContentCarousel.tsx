@@ -109,6 +109,7 @@ export default function ContentCarousel({
                     alt={item.title_zh}
                     fill
                     className="object-cover"
+                    unoptimized
                   />
                 ) : (
                   <div className="w-full h-full gradient-bg" />

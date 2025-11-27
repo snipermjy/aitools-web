@@ -101,6 +101,7 @@ export default function ToolCard({ tool, compact = true, tagConfigs }: ToolCardP
                 height={36}
                 className="w-full h-full object-cover"
                 loading="lazy"
+                unoptimized
                 onError={() => setImageError(true)}
               />
             ) : (

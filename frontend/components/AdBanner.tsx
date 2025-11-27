@@ -91,6 +91,7 @@ export default function AdBanner({ position }: AdBannerProps) {
           width={position === 'sidebar' ? 300 : 1920}
           height={position === 'sidebar' ? 250 : 100}
           className="w-full h-auto"
+          unoptimized
           priority={position === 'top_banner'}
         />
         
