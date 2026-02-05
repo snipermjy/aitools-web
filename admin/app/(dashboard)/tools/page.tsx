@@ -40,9 +40,15 @@ export default function ToolsPage() {
   
   const [tools, setTools] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [categoryStats, setCategoryStats] = useState<Record<string, number>>({}); // 分类统计
   const [featuredToolIds, setFeaturedToolIds] = useState<Set<string>>(new Set()); // 推荐工具ID集合
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // 分页状态
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(30);
+  const [totalTools, setTotalTools] = useState(0);
   
   // 筛选状态
   const [filters, setFilters] = useState({
@@ -53,11 +59,10 @@ export default function ToolsPage() {
     source: searchParams.get('source') || 'all',
     rating: searchParams.get('rating') || 'all',
     featured: searchParams.get('featured') || 'all', // 推荐状态筛选
-    dateFrom: searchParams.get('dateFrom') || '',
-    dateTo: searchParams.get('dateTo') || '',
+    dateFrom: searchParams.get('dateFrom') || '', // 创建时间快捷筛选
   });
   
-  const [showFilters, setShowFilters] = useState(true); // 默认展开
+  // 移除高级筛选按钮，直接显示筛选项
   
   // 批量操作状态
   const [selectedTools, setSelectedTools] = useState<Set<string>>(new Set());
@@ -90,13 +95,33 @@ export default function ToolsPage() {
       .select('id, name_zh')
       .order('sort_order');
     
-    if (data) setCategories(data);
+    if (data) {
+      setCategories(data);
+      
+      // 加载每个分类的工具数量
+      const stats: Record<string, number> = {};
+      for (const cat of data) {
+        const { count } = await supabase
+          .from('tools')
+          .select('*', { count: 'exact', head: true })
+          .eq('category_id', cat.id)
+          .eq('status', 'published');
+        stats[cat.id] = count || 0;
+      }
+      setCategoryStats(stats);
+    }
   }
 
   // 加载工具数据
   useEffect(() => {
+    setCurrentPage(1); // 筛选改变时重置到第一页
     loadTools();
   }, [filters]);
+  
+  // 分页改变时重新加载
+  useEffect(() => {
+    loadTools();
+  }, [currentPage, pageSize]);
 
   async function loadTools() {
     setLoading(true);
@@ -152,14 +177,36 @@ export default function ToolsPage() {
         }
       }
 
+      // 处理创建时间筛选
       if (filters.dateFrom) {
-        query = query.gte('created_at', new Date(filters.dateFrom).toISOString());
-      }
-
-      if (filters.dateTo) {
-        const endDate = new Date(filters.dateTo);
-        endDate.setHours(23, 59, 59, 999);
-        query = query.lte('created_at', endDate.toISOString());
+        const now = new Date();
+        let startDate: Date;
+        
+        switch (filters.dateFrom) {
+          case 'today':
+            startDate = new Date(now.setHours(0, 0, 0, 0));
+            query = query.gte('created_at', startDate.toISOString());
+            break;
+          case 'yesterday':
+            startDate = new Date(now.setDate(now.getDate() - 1));
+            startDate.setHours(0, 0, 0, 0);
+            const endDate = new Date(startDate);
+            endDate.setHours(23, 59, 59, 999);
+            query = query.gte('created_at', startDate.toISOString()).lte('created_at', endDate.toISOString());
+            break;
+          case 'last7days':
+            startDate = new Date(now.setDate(now.getDate() - 7));
+            query = query.gte('created_at', startDate.toISOString());
+            break;
+          case 'last30days':
+            startDate = new Date(now.setDate(now.getDate() - 30));
+            query = query.gte('created_at', startDate.toISOString());
+            break;
+          case 'last90days':
+            startDate = new Date(now.setDate(now.getDate() - 90));
+            query = query.gte('created_at', startDate.toISOString());
+            break;
+        }
       }
 
       // 按名称搜索
@@ -167,7 +214,18 @@ export default function ToolsPage() {
         query = query.or(`name_zh.ilike.%${filters.search}%,name_en.ilike.%${filters.search}%`);
       }
 
-      const { data, error: queryError } = await query.limit(200);
+      // 先获取总数（用于分页）
+      const { count } = await supabase
+        .from('tools')
+        .select('*', { count: 'exact', head: true });
+      
+      setTotalTools(count || 0);
+      
+      // 应用分页
+      const from = (currentPage - 1) * pageSize;
+      const to = from + pageSize - 1;
+      
+      const { data, error: queryError } = await query.range(from, to);
       
       if (queryError) throw queryError;
       
@@ -204,7 +262,6 @@ export default function ToolsPage() {
       rating: 'all',
       featured: 'all',
       dateFrom: '',
-      dateTo: '',
     });
   };
 
@@ -599,23 +656,40 @@ export default function ToolsPage() {
           </div>
         </div>
 
+        {/* 分类快捷筛选 */}
+        <div className="card mb-6">
+          <h3 className="text-lg font-semibold mb-4">分类筛选</h3>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => updateFilter('category', 'all')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                filters.category === 'all'
+                  ? 'bg-primary text-white'
+                  : 'bg-background text-text-secondary hover:bg-gray-200'
+              }`}
+            >
+              全部分类
+            </button>
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => updateFilter('category', cat.id)}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  filters.category === cat.id
+                    ? 'bg-primary text-white'
+                    : 'bg-background text-text-secondary hover:bg-gray-200'
+                }`}
+              >
+                {cat.name_zh} ({categoryStats[cat.id] || 0})
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* 筛选区域 */}
         <div className="card mb-6">
-          {/* 筛选按钮 */}
           <div className="flex items-center justify-between mb-4">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-border rounded-lg hover:bg-background transition-colors"
-            >
-              <FunnelIcon className="w-5 h-5" />
-              <span>高级筛选</span>
-              {activeFiltersCount > 0 && (
-                <span className="px-2 py-0.5 bg-primary text-white text-xs rounded-full">
-                  {activeFiltersCount}
-                </span>
-              )}
-            </button>
-
+            <h3 className="text-lg font-semibold">筛选条件</h3>
             {activeFiltersCount > 0 && (
               <button
                 onClick={resetFilters}
@@ -627,9 +701,8 @@ export default function ToolsPage() {
             )}
           </div>
 
-          {/* 筛选面板 */}
-          {showFilters && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4 border-t border-border">
+          {/* 筛选面板 - 直接显示 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">搜索</label>
                 <input
@@ -655,21 +728,7 @@ export default function ToolsPage() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">分类</label>
-                <select
-                  value={filters.category}
-                  onChange={(e) => updateFilter('category', e.target.value)}
-                  className="select"
-                >
-                  <option value="all">全部分类</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name_zh}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* 分类已移到上面的快捷筛选区域 */}
 
               <div>
                 <label className="block text-sm font-medium mb-2">价格类型</label>
@@ -693,8 +752,8 @@ export default function ToolsPage() {
                   className="select"
                 >
                   <option value="all">全部来源</option>
-                  <option value="manual">手动添加</option>
                   <option value="crawler">爬虫获取</option>
+                  <option value="manual">手动添加</option>
                 </select>
               </div>
 
@@ -727,25 +786,21 @@ export default function ToolsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">创建日期</label>
-                <div className="flex gap-2">
-                  <input
-                    type="date"
-                    value={filters.dateFrom}
-                    onChange={(e) => updateFilter('dateFrom', e.target.value)}
-                    className="input flex-1"
-                  />
-                  <span className="self-center text-text-secondary">至</span>
-                  <input
-                    type="date"
-                    value={filters.dateTo}
-                    onChange={(e) => updateFilter('dateTo', e.target.value)}
-                    className="input flex-1"
-                  />
-                </div>
+                <label className="block text-sm font-medium mb-2">创建时间</label>
+                <select
+                  value={filters.dateFrom}
+                  onChange={(e) => updateFilter('dateFrom', e.target.value)}
+                  className="select"
+                >
+                  <option value="">全部时间</option>
+                  <option value="today">今天</option>
+                  <option value="yesterday">昨天</option>
+                  <option value="last7days">近7天</option>
+                  <option value="last30days">近30天</option>
+                  <option value="last90days">近90天</option>
+                </select>
               </div>
             </div>
-          )}
         </div>
 
         {/* 批量操作区域 */}
@@ -1066,6 +1121,63 @@ export default function ToolsPage() {
               <Link href="/tools/new" className="btn btn-primary btn-sm">
                 添加第一个工具
               </Link>
+            </div>
+          )}
+          
+          {/* 分页控件 */}
+          {tools.length > 0 && (
+            <div className="flex items-center justify-between mt-6 pt-6 border-t border-border">
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-text-secondary">
+                  共 {totalTools} 个工具，显示第 {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, totalTools)} 个
+                </span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="select select-sm"
+                >
+                  <option value={30}>30 / 页</option>
+                  <option value={50}>50 / 页</option>
+                  <option value={100}>100 / 页</option>
+                </select>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 border border-border rounded hover:bg-background disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  首页
+                </button>
+                <button
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 border border-border rounded hover:bg-background disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  上一页
+                </button>
+                <span className="px-4 py-1 text-sm">
+                  第 {currentPage} / {Math.ceil(totalTools / pageSize)} 页
+                </span>
+                <button
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={currentPage >= Math.ceil(totalTools / pageSize)}
+                  className="px-3 py-1 border border-border rounded hover:bg-background disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  下一页
+                </button>
+                <button
+                  onClick={() => setCurrentPage(Math.ceil(totalTools / pageSize))}
+                  disabled={currentPage >= Math.ceil(totalTools / pageSize)}
+                  className="px-3 py-1 border border-border rounded hover:bg-background disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  末页
+                </button>
+              </div>
             </div>
           )}
         </div>

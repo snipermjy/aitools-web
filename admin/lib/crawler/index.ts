@@ -24,6 +24,9 @@ import {
 } from './scraper';
 import axios from 'axios';
 
+// 重新导出 scraper 中的函数，供外部使用
+export { normalizeDomain, normalizeUrl } from './scraper';
+
 /**
  * 删除多个 R2 文件
  */

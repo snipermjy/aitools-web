@@ -12,11 +12,11 @@
 
 import { supabase } from '../supabase';
 import { crawlSingleTool, preCheckUrls } from './index';
-import { scrapeToolDomains, normalizeDomain } from './scraper';
+import { scrapeToolDomains, normalizeDomain, scrapeToolifyAi } from './scraper';
 
 // 任务状态类型
 export type TaskStatus = 'pending' | 'running' | 'paused' | 'stopped' | 'completed' | 'failed';
-export type TaskType = 'tools' | 'navigation';
+export type TaskType = 'tools' | 'navigation' | 'toolify';
 
 // 任务接口
 export interface CrawlerTask {
@@ -231,7 +231,7 @@ class TaskManager {
     // 清空实时日志并添加初始日志
     this.clearRealtimeLogs();
     this.addLog('🚀 任务启动...');
-    this.addLog(`📋 任务类型: ${task.type === 'navigation' ? '导航站采集' : '工具爬取'}`);
+    this.addLog(`📋 任务类型: ${task.type === 'toolify' ? 'Toolify.ai 预设采集' : task.type === 'navigation' ? '导航站采集' : '工具爬取'}`);
     this.addLog(`🎯 目标数量: ${task.total} 个`);
 
     // 更新任务状态
@@ -248,6 +248,8 @@ class TaskManager {
       console.error('任务执行失败:', error);
       await this.updateTaskStatus(taskId, 'failed', error.message);
       this.currentTask = null;
+      this.shouldStop = false;
+      this.shouldPause = false;
     });
   }
 
@@ -260,6 +262,7 @@ class TaskManager {
     }
 
     this.shouldPause = true;
+    this.addLog('⏸️ 正在暂停任务...');
 
     // 更新数据库状态
     await supabase
@@ -290,6 +293,14 @@ class TaskManager {
       throw new Error('任务不存在');
     }
 
+    if (task.status === 'stopped') {
+      throw new Error('已终止的任务无法恢复');
+    }
+
+    if (task.status === 'completed') {
+      throw new Error('已完成的任务无法恢复');
+    }
+
     if (task.status !== 'paused') {
       throw new Error('任务未处于暂停状态');
     }
@@ -316,6 +327,8 @@ class TaskManager {
       console.error('任务执行失败:', error);
       await this.updateTaskStatus(taskId, 'failed', error.message);
       this.currentTask = null;
+      this.shouldPause = false;
+      this.shouldStop = false;
     });
   }
 
@@ -336,6 +349,7 @@ class TaskManager {
     }
 
     this.shouldStop = true;
+    this.addLog('🛑 正在终止任务...');
 
     // 更新数据库状态
     await supabase
@@ -345,6 +359,12 @@ class TaskManager {
         completed_at: new Date().toISOString(),
       })
       .eq('id', taskId);
+    
+    // 清理内部状态
+    this.currentTask = null;
+    this.shouldPause = false;
+    this.currentUrl = '';
+    this.currentStep = '';
   }
 
   /**
@@ -354,8 +374,49 @@ class TaskManager {
     try {
       let urls = task.urls;
 
+      // 调试日志
+      console.log('🔍 executeTask 调试信息:', {
+        taskId,
+        type: task.type,
+        navigation_url: task.navigation_url,
+        max_pages: task.max_pages,
+        urls_length: task.urls?.length
+      });
+
+      // 如果是 Toolify.ai 预设采集，使用两步采集（流式处理）
+      if (task.type === 'toolify' && task.navigation_url) {
+        this.addLog('🎯 Toolify.ai 预设采集模式');
+        
+        try {
+          // extractLinksFromToolify 内部已经通过批次回调处理了所有链接
+          // 包括：提取 → 去重 → AI分析，所以这里直接返回即可
+          await this.extractLinksFromToolify(
+            taskId,
+            task.navigation_url,
+            task.max_pages || 1,
+            task.tool_limit || 50
+          );
+          
+          // 检查是否被终止
+          if (this.shouldStop) {
+            this.addLog('🛑 任务已终止');
+            await this.updateTaskStatus(taskId, 'stopped');
+          } else {
+            // Toolify 任务已完成，更新状态
+            this.addLog('🎉 Toolify.ai 采集任务完成');
+            await this.updateTaskStatus(taskId, 'completed');
+          }
+        } catch (error: any) {
+          this.addLog(`❌ Toolify.ai 采集失败: ${error.message}`);
+          await this.updateTaskStatus(taskId, 'failed', error.message);
+        } finally {
+          this.currentTask = null;
+          this.shouldStop = false;
+        }
+        return;
+      }
       // 如果是导航站采集，先提取链接
-      if (task.type === 'navigation' && task.navigation_url) {
+      else if (task.type === 'navigation' && task.navigation_url) {
         urls = await this.extractLinksFromNavigation(
           taskId,
           task.navigation_url,
@@ -587,16 +648,25 @@ class TaskManager {
         // 状态已在 stopTask 中更新，这里只需要清理
         this.currentTask = null;
         this.shouldStop = false;
+        this.shouldPause = false;
+        this.currentUrl = '';
+        this.currentStep = '';
       } else if (this.shouldPause) {
         console.log('⏸️ 任务已暂停');
         this.addLog('⏸️ 任务已暂停');
         // 状态已在 pauseTask 中更新，这里只需要清理
         this.currentTask = null;
         this.shouldPause = false;
+        this.currentUrl = '';
+        this.currentStep = '';
       } else {
         // 任务正常完成
         await this.updateTaskStatus(taskId, 'completed');
         this.currentTask = null;
+        this.shouldStop = false;
+        this.shouldPause = false;
+        this.currentUrl = '';
+        this.currentStep = '';
         console.log('✅ 任务完成！');
         
         // 添加完成总结
@@ -609,7 +679,174 @@ class TaskManager {
       console.error('任务执行失败:', error);
       await this.updateTaskStatus(taskId, 'failed', error.message);
       this.currentTask = null;
+      this.shouldStop = false;
+      this.shouldPause = false;
+      this.currentUrl = '';
+      this.currentStep = '';
       throw error;
+    }
+  }
+
+  /**
+   * 从 Toolify.ai 提取链接（两步采集）
+   */
+  private async extractLinksFromToolify(
+    taskId: string,
+    toolifyUrl: string,
+    maxPages: number,
+    toolLimit?: number
+  ): Promise<string[]> {
+    this.addLog(`🎯 开始 Toolify.ai 两步采集: ${toolifyUrl}`);
+    this.addLog(`📄 最多爬取 ${maxPages} 页`);
+
+    // 更新进度
+    this.currentStep = `🎯 Toolify.ai 两步采集，最多爬取 ${maxPages} 页`;
+
+    try {
+      // 传递终止检查函数和数量限制
+      const shouldStopCheck = () => this.shouldStop;
+      
+      // 批次处理回调：每批次提取完立即去重并开始AI分析
+      let totalProcessed = 0;
+      let totalSuccess = 0;
+      let totalFailed = 0;
+      let totalSkipped = 0;
+      let totalBlacklisted = 0;
+      
+      const onBatchExtracted = async (batchUrls: string[]) => {
+        if (this.shouldStop) return;
+        
+        this.addLog(`📦 批次提取完成，开始处理 ${batchUrls.length} 个链接...`);
+        
+        // 立即去重和黑名单检查
+        const preCheckResult = await preCheckUrls(batchUrls);
+        
+        totalSkipped += preCheckResult.duplicateCount;
+        totalBlacklisted += preCheckResult.blacklistedCount;
+        
+        this.addLog(`   ✅ 去重完成：新工具 ${preCheckResult.newUrls.length}，重复 ${preCheckResult.duplicateCount}，黑名单 ${preCheckResult.blacklistedCount}`);
+        
+        // 记录跳过的重复工具
+        for (const url of preCheckResult.duplicateUrls) {
+          await this.saveLog(taskId, {
+            url,
+            domain: normalizeDomain(url),
+            status: 'skipped',
+            error_type: 'DUPLICATE' as any,
+            error_message: '工具已存在',
+          });
+        }
+        
+        // 记录跳过的黑名单工具
+        for (const url of preCheckResult.blacklistedUrls) {
+          await this.saveLog(taskId, {
+            url,
+            domain: normalizeDomain(url),
+            status: 'skipped',
+            error_type: 'BLACKLISTED' as any,
+            error_message: '黑名单工具（失败3次以上）',
+          });
+        }
+        
+        // 立即开始AI分析这批新工具
+        if (preCheckResult.newUrls.length > 0) {
+          this.addLog(`   🚀 开始AI分析 ${preCheckResult.newUrls.length} 个新工具...`);
+          
+          // 逐个爬取这批新工具
+          for (const url of preCheckResult.newUrls) {
+            if (this.shouldStop) break;
+            
+            totalProcessed++;
+            this.addLog(`   🔍 [${totalProcessed}] 正在爬取: ${normalizeDomain(url)}`);
+            
+            try {
+              const result = await crawlSingleTool(url);
+              
+              if (result.success) {
+                totalSuccess++;
+                this.addLog(`   ✅ 成功: ${normalizeDomain(url)}`);
+                
+                // 保存成功日志
+                await this.saveLog(taskId, {
+                  url,
+                  domain: normalizeDomain(url),
+                  status: 'success',
+                });
+                
+                // 更新任务进度
+                await supabase
+                  .from('crawler_tasks')
+                  .update({ 
+                    current: totalProcessed,
+                    success: totalSuccess,
+                    skipped: totalSkipped,
+                    blacklisted: totalBlacklisted,
+                  })
+                  .eq('id', taskId);
+              } else {
+                totalFailed++;
+                this.addLog(`   ❌ 失败: ${normalizeDomain(url)} - ${result.error}`);
+                
+                // 保存失败日志
+                await this.saveLog(taskId, {
+                  url,
+                  domain: normalizeDomain(url),
+                  status: 'failed',
+                  error_message: result.error,
+                });
+                
+                // 更新任务进度
+                await supabase
+                  .from('crawler_tasks')
+                  .update({ 
+                    current: totalProcessed,
+                    failed: totalFailed,
+                    skipped: totalSkipped,
+                    blacklisted: totalBlacklisted,
+                  })
+                  .eq('id', taskId);
+              }
+            } catch (error: any) {
+              totalFailed++;
+              this.addLog(`   ❌ 失败: ${normalizeDomain(url)} - ${error.message}`);
+              
+              // 保存失败日志
+              await this.saveLog(taskId, {
+                url,
+                domain: normalizeDomain(url),
+                status: 'failed',
+                error_message: error.message,
+              });
+              
+              // 更新任务进度
+              await supabase
+                .from('crawler_tasks')
+                .update({ 
+                  current: totalProcessed,
+                  failed: totalFailed,
+                  skipped: totalSkipped,
+                  blacklisted: totalBlacklisted,
+                })
+                .eq('id', taskId);
+            }
+          }
+        }
+      };
+      
+      await scrapeToolifyAi(toolifyUrl, shouldStopCheck, toolLimit, undefined, onBatchExtracted);
+      
+      // 检查是否被终止
+      if (this.shouldStop) {
+        this.addLog(`🛑 Toolify.ai 采集已终止`);
+        return [];
+      }
+      
+      this.addLog(`🎉 Toolify.ai 流式采集完成！`);
+      this.addLog(`📊 统计：成功 ${totalSuccess}，失败 ${totalFailed}，重复 ${totalSkipped}，黑名单 ${totalBlacklisted}`);
+      return [];
+    } catch (error: any) {
+      this.addLog(`❌ Toolify.ai 采集失败: ${error.message}`);
+      throw new Error(`Toolify.ai 采集失败: ${error.message}`);
     }
   }
 

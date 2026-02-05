@@ -577,12 +577,13 @@ export async function scrapeToolDomains(
   targetUrl: string,
   selector: string = 'a[href]'
 ): Promise<string[]> {
+  // 标准化 URL
+  targetUrl = normalizeUrl(targetUrl);
+  
   const browser = await getBrowser();
   const page = await browser.newPage();
 
   try {
-    // 标准化 URL
-    targetUrl = normalizeUrl(targetUrl);
     
     console.log(`   📄 正在加载页面...`);
     
@@ -851,6 +852,336 @@ export async function scrapeToolDomains(
     console.error(`❌ 爬取域名列表失败: ${targetUrl}`);
     console.error(`   错误: ${error.message}`);
     return [];
+  } finally {
+    await page.close().catch(() => {});
+  }
+}
+
+/**
+ * 🎯 Toolify.ai 两步采集（预设）
+ * 步骤1：从列表页提取工具详情页链接
+ * 步骤2：访问详情页提取真实工具官网链接
+ */
+export async function scrapeToolifyAi(
+  targetUrl: string,
+  shouldStopCheck?: () => boolean,
+  toolLimit?: number,
+  shouldPauseCheck?: () => boolean,
+  onBatchExtracted?: (urls: string[]) => Promise<void>
+): Promise<string[]> {
+  const browser = await getBrowser();
+  const page = await browser.newPage();
+  
+  try {
+    console.log('   📄 [步骤1] 正在加载列表页...');
+    
+    await page.setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    );
+    
+    await page.setViewport({
+      width: 1920,
+      height: 1080,
+    });
+    
+    // 关键：等待 DOM 加载完成
+    await page.goto(targetUrl, {
+      waitUntil: 'domcontentloaded',
+      timeout: 30000,
+    });
+    
+    console.log('   ⏳ 等待 React 应用渲染...');
+    
+    // 等待工具卡片出现（React 渲染需要时间）
+    try {
+      await page.waitForSelector('a[href*="/tool/"]', { timeout: 10000 });
+      console.log('   ✅ 工具卡片已加载');
+    } catch (e) {
+      console.log('   ⚠️  等待工具卡片超时，尝试继续...');
+    }
+    
+    // 额外等待确保内容完全渲染
+    await page.waitForTimeout(5000);
+    
+    console.log('   📜 [步骤1] 智能加载页面内容...');
+    
+    // 滚动加载更多内容
+    let previousLinkCount = 0;
+    let stableCount = 0;
+    const maxAttempts = 5;
+    
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      console.log(`   🔄 第 ${attempt}/${maxAttempts} 轮加载...`);
+      
+      // 滚动页面
+      await page.evaluate(async () => {
+        await new Promise<void>((resolve) => {
+          let scrollCount = 0;
+          const maxScrolls = 15;
+          const distance = 500;
+          
+          const timer = setInterval(() => {
+            const scrollHeight = document.body.scrollHeight;
+            window.scrollBy(0, distance);
+            scrollCount++;
+            
+            if (scrollCount >= maxScrolls || window.scrollY + window.innerHeight >= scrollHeight) {
+              clearInterval(timer);
+              window.scrollTo(0, 0);
+              setTimeout(() => resolve(), 500);
+            }
+          }, 150);
+        });
+      });
+      
+      await page.waitForTimeout(2000);
+      
+      // 统计链接数量
+      const currentLinkCount = await page.evaluate(() => {
+        return document.querySelectorAll('a[href^="/zh/tool/"], a[href^="/tool/"]').length;
+      });
+      
+      console.log(`      当前工具详情页链接数: ${currentLinkCount} (上一轮: ${previousLinkCount})`);
+      
+      if (currentLinkCount === previousLinkCount) {
+        stableCount++;
+        if (stableCount >= 2) {
+          console.log(`   ✅ 内容已完全加载`);
+          break;
+        }
+      } else {
+        stableCount = 0;
+        console.log(`      ✅ 新增 ${currentLinkCount - previousLinkCount} 个链接`);
+      }
+      
+      previousLinkCount = currentLinkCount;
+    }
+    
+    // 提取工具详情页链接
+    console.log('   🔍 [步骤1] 提取工具详情页链接...');
+    
+    let { detailPageUrls, debugInfo } = await page.evaluate((baseUrl) => {
+      const links = new Set<string>();
+      const allLinks = document.querySelectorAll('a[href]');
+      
+      console.log('🔍 页面调试:', {
+        totalLinks: allLinks.length,
+        baseUrl
+      });
+      
+      // 遍历所有链接，找出包含 /tool/ 的
+      allLinks.forEach((anchor) => {
+        const href = anchor.getAttribute('href');
+        const fullHref = (anchor as HTMLAnchorElement).href;
+        
+        // 检查是否是工具详情页链接
+        if (href && (href.includes('/tool/') || fullHref.includes('/tool/'))) {
+          try {
+            let finalUrl = fullHref;
+            // 如果是相对路径，构建完整 URL
+            if (href.startsWith('/')) {
+              finalUrl = new URL(href, baseUrl).href;
+            }
+            
+            // 只保留 toolify.ai 的工具详情页
+            if (finalUrl.includes('toolify.ai') && finalUrl.includes('/tool/')) {
+              links.add(finalUrl);
+            }
+          } catch (e) {
+            console.error('URL 解析失败:', href, e);
+          }
+        }
+      });
+      
+      const linksArray = Array.from(links);
+      
+      return {
+        detailPageUrls: linksArray,
+        debugInfo: {
+          totalLinks: allLinks.length,
+          foundToolLinks: linksArray.length,
+          samples: linksArray.slice(0, 3)
+        }
+      };
+    }, targetUrl);
+    
+    console.log('   📊 调试信息:', JSON.stringify(debugInfo, null, 2));
+    console.log(`   ✅ [步骤1] 找到 ${detailPageUrls.length} 个工具详情页`);
+    
+    if (detailPageUrls.length === 0) {
+      console.log('   ⚠️  未找到工具详情页链接，返回空数组');
+      return [];
+    }
+    
+    // 应用数量限制（在步骤1后立即限制，避免无用的详情页访问）
+    if (toolLimit && detailPageUrls.length > toolLimit) {
+      console.log(`   ⚠️  找到 ${detailPageUrls.length} 个工具，根据限制只处理前 ${toolLimit} 个`);
+      detailPageUrls = detailPageUrls.slice(0, toolLimit);
+    }
+    
+    // 关闭列表页
+    await page.close();
+    
+    // 步骤2：访问每个详情页，提取真实工具链接
+    console.log('   🔗 [步骤2] 开始提取工具官网链接...');
+    
+    const officialUrls: string[] = [];
+    const batchSize = 5; // 每批处理5个，确保稳定性
+    
+    for (let i = 0; i < detailPageUrls.length; i += batchSize) {
+      // 检查是否应该终止
+      if (shouldStopCheck && shouldStopCheck()) {
+        console.log('   🛑 检测到终止信号，停止提取工具链接');
+        break;
+      }
+      
+      const batch = detailPageUrls.slice(i, i + batchSize);
+      console.log(`   📦 处理批次 ${Math.floor(i / batchSize) + 1}/${Math.ceil(detailPageUrls.length / batchSize)} (${batch.length} 个)`);
+      
+      // 并发处理当前批次，传递终止检查函数
+      const batchResults = await Promise.all(
+        batch.map(detailUrl => extractOfficialUrlFromToolifyDetail(detailUrl, shouldStopCheck))
+      );
+      
+      // 收集有效链接
+      const batchUrls: string[] = [];
+      batchResults.forEach((url, index) => {
+        if (url) {
+          officialUrls.push(url);
+          batchUrls.push(url);
+          console.log(`      ✅ [${i + index + 1}/${detailPageUrls.length}] ${url}`);
+        } else {
+          console.log(`      ⚠️  [${i + index + 1}/${detailPageUrls.length}] 未找到官网链接`);
+        }
+      });
+      
+      // 如果有回调函数，立即处理这批链接（流式处理）
+      if (onBatchExtracted && batchUrls.length > 0) {
+        console.log(`   🚀 [流式处理] 立即处理批次 ${Math.floor(i / batchSize) + 1} 的 ${batchUrls.length} 个链接...`);
+        await onBatchExtracted(batchUrls);
+      } else if (!onBatchExtracted) {
+        console.log(`   ⚠️  未传递批次回调函数，跳过流式处理`);
+      }
+      
+      // 批次间延迟，避免请求过快触发反爬虫
+      if (i + batchSize < detailPageUrls.length) {
+        console.log(`   ⏳ 等待 5 秒后继续下一批...`);
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
+    }
+    
+    console.log(`   🎉 [步骤2] 成功提取 ${officialUrls.length}/${detailPageUrls.length} 个工具官网链接`);
+    
+    return officialUrls;
+    
+  } catch (error: any) {
+    console.error(`❌ Toolify.ai 两步采集失败: ${error.message}`);
+    return [];
+  } finally {
+    await page.close().catch(() => {});
+  }
+}
+
+/**
+ * 爬虫核心逻辑
+ * 负责页面加载、内容提取、链接过滤等
+ * 更新时间: 2025-11-27 17:42 - 批次大小改为5
+ */
+// 添加注释强制重新编译
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function extractOfficialUrlFromToolifyDetail(
+  detailUrl: string,
+  shouldStopCheck?: () => boolean
+): Promise<string | null> {
+  // 访问前先检查终止信号
+  if (shouldStopCheck && shouldStopCheck()) {
+    return null;
+  }
+  
+  const browser = await getBrowser();
+  const page = await browser.newPage();
+  
+  try {
+    await page.setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    );
+    
+    await page.goto(detailUrl, {
+      waitUntil: 'domcontentloaded',
+      timeout: 30000,
+    });
+    
+    // 加载后再次检查终止信号
+    if (shouldStopCheck && shouldStopCheck()) {
+      await page.close();
+      return null;
+    }
+    
+    await page.waitForTimeout(2000);
+    
+    // 提取官网链接（多种策略）
+    const officialUrl = await page.evaluate(() => {
+      // 策略1：查找 target="_blank" 的外部链接（最常见）
+      const externalLinks = Array.from(document.querySelectorAll('a[target="_blank"][href^="http"]'));
+      
+      // 过滤掉社交媒体等无关链接
+      const excludeDomains = ['facebook.com', 'twitter.com', 'linkedin.com', 'instagram.com', 'youtube.com', 'toolify.ai'];
+      
+      // 移除 UTM 参数的函数
+      const cleanUrl = (url: string): string => {
+        try {
+          const urlObj = new URL(url);
+          // 移除所有 UTM 参数
+          urlObj.searchParams.delete('utm_source');
+          urlObj.searchParams.delete('utm_medium');
+          urlObj.searchParams.delete('utm_campaign');
+          urlObj.searchParams.delete('utm_term');
+          urlObj.searchParams.delete('utm_content');
+          return urlObj.toString();
+        } catch (e) {
+          return url;
+        }
+      };
+      
+      for (const link of externalLinks) {
+        const href = (link as HTMLAnchorElement).href;
+        const isExcluded = excludeDomains.some(domain => href.includes(domain));
+        
+        if (!isExcluded) {
+          // 找到第一个有效的外部链接，并清理 UTM 参数
+          return cleanUrl(href);
+        }
+      }
+      
+      // 策略2：查找包含 "官网"、"访问" 等关键词的链接
+      const keywords = ['官网', '访问网站', 'visit', 'website', 'official'];
+      for (const link of externalLinks) {
+        const text = (link.textContent || '').toLowerCase();
+        const hasKeyword = keywords.some(kw => text.includes(kw.toLowerCase()));
+        
+        if (hasKeyword) {
+          const href = (link as HTMLAnchorElement).href;
+          const isExcluded = excludeDomains.some(domain => href.includes(domain));
+          if (!isExcluded) {
+            return cleanUrl(href);
+          }
+        }
+      }
+      
+      // 策略3：查找特定 class 的链接
+      const toolInfoLink = document.querySelector('.tool-detail-info-url a[href^="http"]');
+      if (toolInfoLink) {
+        return cleanUrl((toolInfoLink as HTMLAnchorElement).href);
+      }
+      
+      return null;
+    });
+    
+    return officialUrl;
+    
+  } catch (error: any) {
+    console.error(`   ❌ 提取详情页链接失败 (${detailUrl}): ${error.message}`);
+    return null;
   } finally {
     await page.close().catch(() => {});
   }

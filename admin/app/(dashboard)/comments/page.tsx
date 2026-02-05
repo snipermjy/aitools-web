@@ -256,8 +256,7 @@ export default function CommentsPage() {
                     </th>
                     <th>评论内容</th>
                     <th>工具</th>
-                    <th>评分</th>
-                    <th>用户</th>
+                    <th>IP地址</th>
                     <th>状态</th>
                     <th>时间</th>
                     <th>操作</th>
@@ -275,22 +274,14 @@ export default function CommentsPage() {
                         />
                       </td>
                       <td>
-                        <div className="max-w-md">{comment.content}</div>
+                        <div className="max-w-md break-words whitespace-pre-wrap text-sm">
+                          {comment.content}
+                        </div>
                       </td>
                       <td>{comment.tool?.name_zh || '-'}</td>
                       <td>
-                        {comment.rating ? (
-                          <span className="font-medium">{comment.rating} ⭐</span>
-                        ) : '-'}
-                      </td>
-                      <td>
-                        <div className="text-sm">
-                          <div>{comment.user_name || '匿名'}</div>
-                          {comment.user_email && (
-                            <div className="text-xs text-text-secondary">
-                              {comment.user_email}
-                            </div>
-                          )}
+                        <div className="text-sm text-text-secondary font-mono">
+                          {comment.ip_address}
                         </div>
                       </td>
                       <td>

@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     const { type, urls, navigationUrl, maxPages, limit } = body;
 
     // 验证任务类型
-    if (!type || !['tools', 'navigation'].includes(type)) {
+    if (!type || !['tools', 'navigation', 'toolify'].includes(type)) {
       return NextResponse.json({
         success: false,
         error: '无效的任务类型',
@@ -35,7 +35,33 @@ export async function POST(request: NextRequest) {
     }
 
     // 验证参数
-    if (type === 'tools') {
+    if (type === 'toolify') {
+      // Toolify.ai 预设采集
+      console.log('🎯 创建 Toolify 任务，参数:', { maxPages, limit });
+      const toolifyUrl = 'https://www.toolify.ai/zh/new';
+      
+      try {
+        const taskId = await taskManager.createTask(
+          'toolify',
+          [],
+          toolifyUrl,
+          maxPages || 1,
+          limit || 50
+        );
+
+        console.log('✅ Toolify 任务创建成功:', taskId);
+        return NextResponse.json({
+          success: true,
+          data: { taskId },
+        });
+      } catch (createError: any) {
+        console.error('❌ Toolify 任务创建失败:', createError);
+        return NextResponse.json({
+          success: false,
+          error: `创建任务失败: ${createError.message}`,
+        }, { status: 500 });
+      }
+    } else if (type === 'tools') {
       if (!urls || !Array.isArray(urls) || urls.length === 0) {
         return NextResponse.json({
           success: false,

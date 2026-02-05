@@ -25,7 +25,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { r2 } from '@/lib/r2';
+import { uploadToR2, getR2PublicUrl } from '@/lib/r2';
 
 // 允许的图片类型
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -99,13 +99,14 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(arrayBuffer);
 
     // 上传到 R2
-    const url = await r2.uploadFile(r2Key, buffer, file.type);
+    const r2Path = await uploadToR2(buffer, filename);
+    const url = getR2PublicUrl(r2Path);
 
     return NextResponse.json({
       success: true,
       data: {
         url,
-        r2_key: r2Key,
+        r2_key: r2Path,
       },
     });
   } catch (error: any) {

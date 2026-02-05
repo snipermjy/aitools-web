@@ -26,7 +26,7 @@ import {
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 
-type TabType = 'tools' | 'navigation';
+type TabType = 'tools' | 'navigation' | 'toolify';
 type TaskStatus = 'pending' | 'running' | 'paused' | 'stopped' | 'completed' | 'failed';
 
 interface Task {
@@ -83,6 +83,10 @@ export default function CrawlerPage() {
   const [maxPages, setMaxPages] = useState(5);
   const [navigationLimit, setNavigationLimit] = useState(50);
 
+  // Toolify.ai 预设采集
+  const [toolifyMaxPages, setToolifyMaxPages] = useState(1);
+  const [toolifyLimit, setToolifyLimit] = useState(50);
+
   // 当前任务
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
   const [currentTaskLogs, setCurrentTaskLogs] = useState<TaskLog[]>([]);
@@ -129,7 +133,15 @@ export default function CrawlerPage() {
 
   // 轮询任务状态（提前定义，避免循环依赖）
   const startPolling = useCallback((taskId: string) => {
+    let isPolling = true; // 添加标志控制轮询
+    let timeoutId: NodeJS.Timeout | null = null; // 保存 timeout ID
+    
     const poll = async () => {
+      if (!isPolling) {
+        console.log('🛑 轮询已停止');
+        return;
+      }
+      
       try {
         const res = await fetch(`/api/crawler/tasks/${taskId}/status`);
         const data = await res.json();
@@ -145,27 +157,47 @@ export default function CrawlerPage() {
             data.data.task.status === 'stopped' ||
             data.data.task.status === 'failed'
           ) {
+            console.log('✅ 任务已结束，状态:', data.data.task.status);
+            isPolling = false; // 停止轮询
             loadTaskHistory();
-            // 延迟清除，让用户看到最终状态
-            setTimeout(() => {
+            
+            // 如果是终止状态，立即清除（用户主动操作）
+            if (data.data.task.status === 'stopped') {
               setCurrentTask(null);
               setCurrentTaskLogs([]);
-              setRealtimeLogs([]); // 清空实时日志
-            }, 3000);
-      return;
-    }
+              setRealtimeLogs([]);
+            } else {
+              // 完成或失败状态，延迟清除让用户看到最终状态
+              setTimeout(() => {
+                setCurrentTask(null);
+                setCurrentTaskLogs([]);
+                setRealtimeLogs([]);
+              }, 3000);
+            }
+            return; // 退出轮询
+          }
 
           // 根据状态调整轮询频率
           const interval =
             data.data.task.status === 'running' ? 2000 : 10000;
-          setTimeout(poll, interval);
+          timeoutId = setTimeout(poll, interval);
         }
       } catch (error) {
         console.error('轮询失败:', error);
+        // 出错时也停止轮询
+        isPolling = false;
       }
     };
 
     poll();
+    
+    // 返回停止函数（清理 timeout）
+    return () => {
+      isPolling = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [loadTaskHistory]);
 
   // 初始化
@@ -197,9 +229,24 @@ export default function CrawlerPage() {
     setLoading(true);
 
     try {
+      console.log('🎯 开始创建任务...');
+      
       // 创建任务
       let createRes;
-      if (activeTab === 'tools') {
+      if (activeTab === 'toolify') {
+        // Toolify.ai 预设采集
+        console.log('📝 创建 Toolify 任务:', { maxPages: toolifyMaxPages, limit: toolifyLimit });
+        createRes = await fetch('/api/crawler/tasks/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'toolify',
+            maxPages: toolifyMaxPages,
+            limit: toolifyLimit,
+          }),
+        });
+        console.log('✅ 创建任务 API 响应:', createRes.status);
+      } else if (activeTab === 'tools') {
         const urls = toolsInput
           .split('\n')
           .map((line) => line.trim())
@@ -239,6 +286,7 @@ export default function CrawlerPage() {
       }
 
       const createData = await createRes.json();
+      console.log('📦 创建任务响应数据:', createData);
 
       if (!createData.success) {
         alert(`创建任务失败: ${createData.error}`);
@@ -247,13 +295,16 @@ export default function CrawlerPage() {
       }
 
       const taskId = createData.data.taskId;
+      console.log('✅ 任务创建成功，ID:', taskId);
 
       // 启动任务
+      console.log('🚀 启动任务...');
       const startRes = await fetch(`/api/crawler/tasks/${taskId}/start`, {
         method: 'POST',
       });
 
       const startData = await startRes.json();
+      console.log('📦 启动任务响应:', startData);
 
       if (!startData.success) {
         alert(`启动任务失败: ${startData.error}`);
@@ -261,6 +312,7 @@ export default function CrawlerPage() {
         return;
       }
 
+      console.log('✅ 任务启动成功，开始轮询');
       // 开始轮询
       startPolling(taskId);
 
@@ -271,8 +323,10 @@ export default function CrawlerPage() {
         setNavigationUrl('');
       }
     } catch (error: any) {
+      console.error('❌ 创建/启动任务失败:', error);
       alert(`错误: ${error.message}`);
     } finally {
+      console.log('🏁 完成，清除 loading 状态');
       setLoading(false);
     }
   };
@@ -344,8 +398,10 @@ export default function CrawlerPage() {
       if (!data.success) {
         alert(`终止失败: ${data.error}`);
       } else {
+        // 立即清除当前任务，不等待轮询
         setCurrentTask(null);
         setCurrentTaskLogs([]);
+        setRealtimeLogs([]);
         loadTaskHistory();
       }
     } catch (error: any) {
@@ -555,6 +611,16 @@ export default function CrawlerPage() {
                 }`}
               >
             🌐 导航站采集
+              </button>
+              <button
+            onClick={() => setActiveTab('toolify')}
+            className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+              activeTab === 'toolify'
+                    ? 'bg-primary text-white'
+                : 'bg-white text-text-secondary hover:bg-gray-50'
+                }`}
+              >
+            🎯 Toolify.ai 预设
               </button>
           </div>
 
@@ -857,6 +923,65 @@ https://claude.ai`}
         </div>
         )}
 
+        {/* Tab 3: Toolify.ai 预设采集 */}
+        {activeTab === 'toolify' && (
+          <div className="card mb-6">
+            <h2 className="text-lg font-semibold mb-4">🎯 Toolify.ai 预设采集</h2>
+            <p className="text-sm text-text-secondary mb-4">
+              预设网址：<strong>https://www.toolify.ai/zh/new</strong>
+            </p>
+
+            <div className="flex items-center gap-4 mb-4">
+              <label className="text-sm font-medium">爬取页数：</label>
+              <input
+                type="number"
+                value={toolifyMaxPages}
+                onChange={(e) => setToolifyMaxPages(Math.max(1, parseInt(e.target.value) || 1))}
+                min="1"
+                className="input w-24"
+                disabled={loading || !!currentTask}
+              />
+              <span className="text-sm text-text-secondary">（建议 1-3 页，每页约 50 个工具）</span>
+            </div>
+
+            <div className="flex items-center gap-4 mb-4">
+              <label className="text-sm font-medium">采集数量：</label>
+              <input
+                type="number"
+                value={toolifyLimit}
+                onChange={(e) =>
+                  setToolifyLimit(Math.max(1, parseInt(e.target.value) || 1))
+                }
+                min="1"
+                className="input w-24"
+                disabled={loading || !!currentTask}
+              />
+              <span className="text-sm text-text-secondary">（至少1个，建议 20-100 个）</span>
+            </div>
+
+            <button
+              onClick={startCrawl}
+              disabled={loading || !!currentTask}
+              className="btn btn-primary"
+            >
+              <PlayIcon className="w-5 h-5 mr-2" />
+              {loading ? '创建中...' : '开始采集'}
+            </button>
+
+            <p className="text-sm text-text-secondary mt-4">
+              💡 提示：
+              <br />
+              • 自动两步采集：列表页 → 详情页 → 提取工具官网链接
+              <br />
+              • 自动去重和过滤已存在的工具
+              <br />
+              • 提取的工具链接会交给 AI 自动分析
+              <br />
+              • 预计耗时：每个工具 30-60 秒
+            </p>
+          </div>
+        )}
+
         {/* 任务历史 */}
         <div className="card">
           <div className="flex items-center justify-between mb-4">
@@ -891,7 +1016,7 @@ https://claude.ai`}
 
                       <div>
                         <div className="font-medium">
-                          {task.type === 'tools' ? '🎯 工具爬取' : '🌐 导航站采集'}
+                          {task.type === 'tools' ? '🎯 工具爬取' : task.type === 'toolify' ? '🎯 Toolify.ai 预设' : '🌐 导航站采集'}
                           {task.navigation_url && (
                             <span className="text-sm text-text-secondary ml-2">
                               ({new URL(task.navigation_url).hostname})

@@ -86,6 +86,22 @@ class MemoryCache {
     this.set(key, data, ttl);
     return data;
   }
+
+  /**
+   * 批量删除缓存（按前缀）
+   * @param prefix 缓存键前缀
+   */
+  deleteByPrefix(prefix: string): void {
+    const keysToDelete: string[] = [];
+    
+    for (const key of this.cache.keys()) {
+      if (key.startsWith(prefix)) {
+        keysToDelete.push(key);
+      }
+    }
+    
+    keysToDelete.forEach(key => this.cache.delete(key));
+  }
 }
 
 // 导出单例
